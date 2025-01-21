@@ -1,22 +1,26 @@
-
 from enum import IntEnum
-from typing import  NamedTuple
+from typing import NamedTuple
 
 import chex
 from chex import dataclass
 
-class Actions(IntEnum):
-    COOPERATE: int = 0
-    DEFECT: int = 1
+
+class Action(IntEnum):
+    NOOP: int = 0
+    COOPERATE: int = 1
+    DEFECT: int = 2
+
 
 @dataclass
 class State:
     active_agents: chex.Array
+    ranking: chex.Array
     step_count: int
     action_mask: chex.Array
     key: chex.PRNGKey
 
+
 class Observation(NamedTuple):
-    player: int
-    action: Actions
-    reward: int
+    active_agents: chex.Array
+    action_mask: chex.Array
+    ranking: chex.Array
