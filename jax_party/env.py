@@ -42,13 +42,64 @@ class PartyEnvironment(Environment[State, specs.DiscreteArray, Observation]):
         active_agents = jax.random.choice(key, self.POSSIBLE_MATCHUPS, shape=())
         action_mask = jax.vmap(self._get_action_mask)(active_agents)
         ranking = jnp.zeros(self.num_agents)
+        next_key, _ = jax.random.split(key)
+
+        state = State(
+            active_agents=active_agents,
+            cumulative_rewards=0,
+            ranking=ranking,
+            step_count=0,
+            action_mask=action_mask,
+            key=next_key,
+        )
 
         observation = Observation(
             active_agents=active_agents, action_mask=action_mask, ranking=ranking
         )
         timestep = restart(observation=observation)
 
-        return observation, timestep
+        return state, timestep
+
+    def step(
+        self, state: State, actions: chex.Array
+    ) -> Tuple[State, TimeStep[Observation]]:
+        actions = self._get_valid_actions(actions, state.action_mask)
+        rewards = self._get_rewards(state, actions)
+        state.cumulative_rewards += rewards
+
+        ranking = jnp.argsort(state.cumulative_rewards, descending=True)
+        steps = state.step_count + 1
+        done = steps >= self.time_limit
+        next_active_agents = jax.random.choice(
+            state.key, self.POSSIBLE_MATCHUPS, shape=()
+        )
+        next_action_mask = jax.vmap(self._get_action_mask)(next_active_agents)
+        next_key, _ = jax.random.split(state.key)
+
+        next_observation = Observation(
+            active_agents=next_active_agents,
+            action_mask=next_action_mask,
+            ranking=ranking,
+        )
+
+        next_state = State(
+            active_agents=next_active_agents,
+            cumulative_rewards=state.cumulative_rewards,
+            ranking=ranking,
+            step_count=steps,
+            action_mask=next_action_mask,
+            key=next_key,
+        )
+
+        timestep = jax.lax.cond(
+            done,
+            termination,
+            transition,
+            rewards,
+            next_observation,
+        )
+
+        return next_state, timestep
 
     def _get_action_mask(self, is_active: chex.Scalar) -> chex.Array:
         """
@@ -90,13 +141,6 @@ class PartyEnvironment(Environment[State, specs.DiscreteArray, Observation]):
         )
 
         return rewards
-
-    def step(
-        self, state: State, actions: chex.Array
-    ) -> Tuple[State, TimeStep[Observation]]:
-        actions = self._get_valid_actions(actions, state.action_mask)
-        rewards = self._get_rewards(state, actions)
-        print(rewards)
 
     @cached_property
     def observation_spec(self) -> specs.DiscreteArray:

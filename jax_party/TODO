@@ -1,0 +1,1 @@
+- Restrict active agent actions to COOP, DEFECT (don't allow NOOP when active)

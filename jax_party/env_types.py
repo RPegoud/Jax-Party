@@ -14,6 +14,7 @@ class Action(IntEnum):
 @dataclass
 class State:
     active_agents: chex.Array
+    cumulative_rewards: chex.Array
     ranking: chex.Array
     step_count: int
     action_mask: chex.Array
