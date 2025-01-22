@@ -1,4 +1,6 @@
 from typing import Optional, Sequence, Tuple
+
+from colorama import Fore
 from jax_party import Action, State, Observation, tree_slice
 from jumanji.types import TimeStep, restart, termination, transition
 
@@ -10,9 +12,55 @@ import chex
 from functools import cached_property
 
 
-class PartyEnvironment(Environment[State, specs.DiscreteArray, Observation]):
+def _get_action_mask(self, is_active: chex.Scalar) -> chex.Array:
+    """
+    Returns legal actions depending on the agent's state.
+    """
+    return jax.lax.select(
+        is_active,
+        jnp.array([False, True, True]),  # COOPERATE, DEFECT
+        jnp.array([True, False, False]),  # NOOP
+    )
 
-    def __init__(self, time_limit: int):
+
+class PartyGenerator:
+    """
+    Generator for the JaxParty Environment
+    """
+
+    def __init__(self, **kwargs):
+        self.num_agents = 3
+        self.POSSIBLE_MATCHUPS = jnp.array(
+            [
+                [1, 1, 0],
+                [1, 0, 1],
+                [0, 1, 1],
+            ],
+        )
+
+    def __call__(self, key: chex.PRNGKey) -> State:
+        active_agents = jax.random.choice(key, self.POSSIBLE_MATCHUPS, shape=())
+        action_mask = jax.vmap(_get_action_mask)(active_agents)
+        ranking = jnp.zeros(self.num_agents)
+        cumulative_rewards = jnp.zeros(self.num_agents)
+        next_key, _ = jax.random.split(key)
+
+        state = State(
+            active_agents=active_agents,
+            cumulative_rewards=cumulative_rewards,
+            ranking=ranking,
+            step_count=0,
+            action_mask=action_mask,
+            key=next_key,
+        )
+
+        return state
+
+
+class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
+
+    def __init__(self, generator: PartyGenerator, time_limit: int = 4000):
+        self.env_name = "JaxParty-v0"
         self.num_agents = 3
         self.time_limit = time_limit
         self.POSSIBLE_MATCHUPS = jnp.array(
@@ -36,25 +84,16 @@ class PartyEnvironment(Environment[State, specs.DiscreteArray, Observation]):
                 [-1, 0, 1],  # DEFECT row
             ]
         )
+        self.generator = generator
         super().__init__()
 
     def reset(self, key: chex.PRNGKey) -> Tuple[State, TimeStep[Observation]]:
-        active_agents = jax.random.choice(key, self.POSSIBLE_MATCHUPS, shape=())
-        action_mask = jax.vmap(self._get_action_mask)(active_agents)
-        ranking = jnp.zeros(self.num_agents)
-        next_key, _ = jax.random.split(key)
-
-        state = State(
-            active_agents=active_agents,
-            cumulative_rewards=0,
-            ranking=ranking,
-            step_count=0,
-            action_mask=action_mask,
-            key=next_key,
-        )
+        state = self.generator(key)
 
         observation = Observation(
-            active_agents=active_agents, action_mask=action_mask, ranking=ranking
+            active_agents=state.active_agents,
+            action_mask=state.action_mask,
+            ranking=state.ranking,
         )
         timestep = restart(observation=observation)
 
@@ -73,7 +112,7 @@ class PartyEnvironment(Environment[State, specs.DiscreteArray, Observation]):
         next_active_agents = jax.random.choice(
             state.key, self.POSSIBLE_MATCHUPS, shape=()
         )
-        next_action_mask = jax.vmap(self._get_action_mask)(next_active_agents)
+        next_action_mask = jax.vmap(_get_action_mask)(next_active_agents)
         next_key, _ = jax.random.split(state.key)
 
         next_observation = Observation(
@@ -100,16 +139,6 @@ class PartyEnvironment(Environment[State, specs.DiscreteArray, Observation]):
         )
 
         return next_state, timestep
-
-    def _get_action_mask(self, is_active: chex.Scalar) -> chex.Array:
-        """
-        Returns legal actions depending on the agent's state.
-        """
-        return jax.lax.select(
-            is_active,
-            jnp.array([False, True, True]),  # COOPERATE, DEFECT
-            jnp.array([True, False, False]),  # NOOP
-        )
 
     def _get_valid_actions(
         self, actions: chex.Array, action_mask: chex.Array
