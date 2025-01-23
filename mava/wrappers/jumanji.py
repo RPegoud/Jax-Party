@@ -37,7 +37,6 @@ from jumanji.environments.routing.robot_warehouse import RobotWarehouse
 from jumanji.types import TimeStep
 from jumanji.wrappers import Wrapper
 
-from jax_party.env import JaxParty
 from mava.types import Observation, ObservationGlobalState, State
 
 
@@ -135,16 +134,6 @@ class JumanjiMarlWrapper(Wrapper, ABC):
     def action_dim(self) -> chex.Array:
         """Get the actions dim for each agent."""
         return int(self._env.action_spec.num_values[0])
-
-
-class PartyMARLWrapper(JumanjiMarlWrapper):
-    def __init__(self, env: JaxParty, add_global_state: bool = False):
-        super().__init__(env, add_global_state)
-        self._env: JaxParty
-
-    def modify_timestep(self, timestep: TimeStep) -> TimeStep[Observation]:
-        """Modify the timestep for `step` and `reset`."""
-        return timestep
 
 
 class RwareWrapper(JumanjiMarlWrapper):

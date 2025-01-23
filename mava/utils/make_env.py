@@ -59,8 +59,8 @@ from mava.wrappers import (
     UoeWrapper,
     VectorConnectorWrapper,
     async_multiagent_worker,
-    PartyMARLWrapper,
 )
+from jax_party import PartyMARLWrapper
 
 # Registry mapping environment names to their generator and wrapper classes.
 _jumanji_registry = {

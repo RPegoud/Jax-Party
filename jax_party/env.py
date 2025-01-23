@@ -11,8 +11,10 @@ import jax.numpy as jnp
 import chex
 from functools import cached_property
 
+from mava.wrappers.jumanji import JumanjiMarlWrapper
 
-def _get_action_mask(self, is_active: chex.Scalar) -> chex.Array:
+
+def _get_action_mask(is_active: chex.Scalar) -> chex.Array:
     """
     Returns legal actions depending on the agent's state.
     """
@@ -58,6 +60,9 @@ class PartyGenerator:
 
 
 class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
+    """
+    Iterated Prisoner's Dilemma between 3 agents with observable ranking.
+    """
 
     def __init__(self, generator: PartyGenerator, time_limit: int = 4000):
         self.env_name = "JaxParty-v0"
@@ -87,11 +92,13 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         self.generator = generator
         super().__init__()
 
+    # TODO: add reward_fn based on ranking
+
     def reset(self, key: chex.PRNGKey) -> Tuple[State, TimeStep[Observation]]:
         state = self.generator(key)
 
         observation = Observation(
-            active_agents=state.active_agents,
+            agents_view=state.active_agents,
             action_mask=state.action_mask,
             ranking=state.ranking,
         )
@@ -116,7 +123,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         next_key, _ = jax.random.split(state.key)
 
         next_observation = Observation(
-            active_agents=next_active_agents,
+            agents_view=next_active_agents,
             action_mask=next_action_mask,
             ranking=ranking,
         )
@@ -173,13 +180,13 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
 
     @cached_property
     def observation_spec(self) -> specs.DiscreteArray:
-        active_agents = specs.Array((self.num_agents,), jnp.bool_, "action_mask")
+        agents_view = specs.Array((self.num_agents,), jnp.bool_, "action_mask")
         action_mask = specs.Array((self.num_agents,), jnp.bool_, "action_mask")
         ranking = specs.Array((self.num_agents,), jnp.int32, "ranking")
         return specs.Spec(
             Observation,
             "ObservationSpec",
-            active_agents=active_agents,
+            agents_view=agents_view,
             action_mask=action_mask,
             ranking=ranking,
         )
@@ -190,3 +197,26 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
             num_values=jnp.array([len(Action)] * self.num_agents, jnp.int32),
             name="action",
         )
+
+
+class PartyMARLWrapper(JumanjiMarlWrapper):
+    def __init__(self, env: JaxParty, add_global_state: bool = False):
+        super().__init__(env, add_global_state)
+        self._env: JaxParty
+
+    def modify_timestep(self, timestep: TimeStep) -> TimeStep[Observation]:
+        """Duplicates the observation for each agent."""
+        agents_view = jnp.tile(
+            timestep.observation.agents_view, self._env.num_agents
+        ).reshape(self._env.num_agents, -1)
+        marl_observation = Observation(
+            agents_view, timestep.observation.action_mask, timestep.observation.ranking
+        )
+        marl_timestep = TimeStep(
+            observation=marl_observation,
+            reward=timestep.reward,
+            discount=timestep.discount,
+            step_type=timestep.step_type,
+        )
+
+        return marl_timestep

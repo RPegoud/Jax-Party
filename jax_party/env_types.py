@@ -22,6 +22,6 @@ class State:
 
 
 class Observation(NamedTuple):
-    active_agents: chex.Array
+    agents_view: chex.Array
     action_mask: chex.Array
     ranking: chex.Array
