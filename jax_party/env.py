@@ -6,6 +6,7 @@ from jumanji.types import TimeStep, restart, termination, transition
 
 from jumanji.env import Environment
 from jumanji import specs
+from jumanji.types import StepType
 import jax
 import jax.numpy as jnp
 import chex
@@ -43,7 +44,7 @@ class PartyGenerator:
     def __call__(self, key: chex.PRNGKey) -> State:
         active_agents = jax.random.choice(key, self.POSSIBLE_MATCHUPS, shape=())
         action_mask = jax.vmap(_get_action_mask)(active_agents)
-        ranking = jnp.zeros(self.num_agents)
+        ranking = jnp.zeros(self.num_agents, dtype=jnp.int32)
         cumulative_rewards = jnp.zeros(self.num_agents)
         next_key, _ = jax.random.split(key)
 
@@ -93,16 +94,20 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         super().__init__()
 
     # TODO: add reward_fn based on ranking
+    # TODO: consider random tie-breaks for ranking-based rewards
 
     def reset(self, key: chex.PRNGKey) -> Tuple[State, TimeStep[Observation]]:
         state = self.generator(key)
 
-        observation = Observation(
-            agents_view=state.active_agents,
-            action_mask=state.action_mask,
-            ranking=state.ranking,
+        observation = self._make_observation(state)
+        # timestep = restart(observation=observation, shape=(self.num_agents,))
+        timestep = TimeStep(
+            step_type=StepType.FIRST,
+            reward=jnp.zeros(self.num_agents),
+            discount=jnp.ones(()),
+            observation=observation,
+            extras={},
         )
-        timestep = restart(observation=observation)
 
         return state, timestep
 
@@ -111,7 +116,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
     ) -> Tuple[State, TimeStep[Observation]]:
         actions = self._get_valid_actions(actions, state.action_mask)
         rewards = self._get_rewards(state, actions)
-        state.cumulative_rewards += rewards
+        state.cumulative_rewards += rewards.squeeze()
 
         ranking = jnp.argsort(state.cumulative_rewards, descending=True)
         steps = state.step_count + 1
@@ -122,11 +127,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         next_action_mask = jax.vmap(_get_action_mask)(next_active_agents)
         next_key, _ = jax.random.split(state.key)
 
-        next_observation = Observation(
-            agents_view=next_active_agents,
-            action_mask=next_action_mask,
-            ranking=ranking,
-        )
+        next_observation = self._make_observation(state)
 
         next_state = State(
             active_agents=next_active_agents,
@@ -147,6 +148,18 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
 
         return next_state, timestep
 
+    def _make_observation(self, state: State) -> Observation:
+        """
+        Concatenates the active agents, cumulative rewards, and ranking into a observation array.
+        """
+        agents_view = jnp.concatenate(
+            (state.active_agents, state.cumulative_rewards, state.ranking)
+        )
+        return Observation(
+            agents_view=agents_view,
+            action_mask=state.action_mask,
+        )
+
     def _get_valid_actions(
         self, actions: chex.Array, action_mask: chex.Array
     ) -> chex.Array:
@@ -164,6 +177,9 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         return jax.vmap(_get_valid_action)(actions, action_mask)
 
     def _get_rewards(self, state: State, actions: chex.Array) -> chex.Array:
+        """
+        Querries the payoff matrix for the rewards of the active agents.
+        """
         active_agents_indices = jnp.where(state.active_agents == 1, size=2)[0]
         active_agents_actions = actions.at[active_agents_indices].get()
         active_agents_rewards = tree_slice(
@@ -177,18 +193,17 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         )
 
         return rewards
+        # return jnp.expand_dims(rewards, 0)
 
     @cached_property
     def observation_spec(self) -> specs.DiscreteArray:
-        agents_view = specs.Array((self.num_agents,), jnp.bool_, "action_mask")
+        agents_view = specs.Array((self.num_agents * 3,), jnp.bool_, "agents_view")
         action_mask = specs.Array((self.num_agents,), jnp.bool_, "action_mask")
-        ranking = specs.Array((self.num_agents,), jnp.int32, "ranking")
         return specs.Spec(
             Observation,
             "ObservationSpec",
             agents_view=agents_view,
             action_mask=action_mask,
-            ranking=ranking,
         )
 
     @cached_property
@@ -206,11 +221,13 @@ class PartyMARLWrapper(JumanjiMarlWrapper):
 
     def modify_timestep(self, timestep: TimeStep) -> TimeStep[Observation]:
         """Duplicates the observation for each agent."""
-        agents_view = jnp.tile(
-            timestep.observation.agents_view, self._env.num_agents
-        ).reshape(self._env.num_agents, -1)
+        replicate = lambda x: jnp.tile(x, self._env.num_agents).reshape(
+            self._env.num_agents, -1
+        )
+        agents_view = replicate(timestep.observation.agents_view)
         marl_observation = Observation(
-            agents_view, timestep.observation.action_mask, timestep.observation.ranking
+            agents_view,
+            timestep.observation.action_mask,  # timestep.observation.ranking
         )
         marl_timestep = TimeStep(
             observation=marl_observation,

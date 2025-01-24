@@ -24,4 +24,3 @@ class State:
 class Observation(NamedTuple):
     agents_view: chex.Array
     action_mask: chex.Array
-    ranking: chex.Array
