@@ -6,9 +6,9 @@ from chex import dataclass
 
 
 class Action(IntEnum):
-    NOOP: int = 0
-    COOPERATE: int = 1
-    DEFECT: int = 2
+    # NOOP: int = -1
+    COOPERATE: int = 0
+    DEFECT: int = 1
 
 
 @dataclass

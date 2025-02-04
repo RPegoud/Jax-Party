@@ -111,7 +111,9 @@ class BaseLogger(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def log_stat(self, key: str, value: float, step: int, eval_step: int, event: LogEvent) -> None:
+    def log_stat(
+        self, key: str, value: float, step: int, eval_step: int, event: LogEvent
+    ) -> None:
         """Log a single metric."""
         raise NotImplementedError
 
@@ -134,7 +136,9 @@ class MultiLogger(BaseLogger):
     def __init__(self, loggers: List[BaseLogger]) -> None:
         self.loggers = loggers
 
-    def log_stat(self, key: str, value: float, step: int, eval_step: int, event: LogEvent) -> None:
+    def log_stat(
+        self, key: str, value: float, step: int, eval_step: int, event: LogEvent
+    ) -> None:
         for logger in self.loggers:
             logger.log_stat(key, value, step, eval_step, event)
 
@@ -170,7 +174,9 @@ class NeptuneLogger(BaseLogger):
         self.unique_token = unique_token
         self.upload_json_data = cfg.logger.kwargs.upload_json_data
 
-    def log_stat(self, key: str, value: float, step: int, eval_step: int, event: LogEvent) -> None:
+    def log_stat(
+        self, key: str, value: float, step: int, eval_step: int, event: LogEvent
+    ) -> None:
         # Main metric if it's the mean of a list of metrics (ends with '/mean')
         # or it's a single metric doesn't contain a '/'.
         is_main_metric = "/" not in key or key.endswith("/mean")
@@ -202,12 +208,16 @@ class TensorboardLogger(BaseLogger):
 
     def __init__(self, cfg: DictConfig, unique_token: str) -> None:
         tb_exp_path = get_logger_path(cfg, "tensorboard")
-        tb_logs_path = os.path.join(cfg.logger.base_exp_path, f"{tb_exp_path}/{unique_token}")
+        tb_logs_path = os.path.join(
+            cfg.logger.base_exp_path, f"{tb_exp_path}/{unique_token}"
+        )
 
         configure(tb_logs_path)
         self.log = log_value
 
-    def log_stat(self, key: str, value: float, step: int, eval_step: int, event: LogEvent) -> None:
+    def log_stat(
+        self, key: str, value: float, step: int, eval_step: int, event: LogEvent
+    ) -> None:
         t = step if event != LogEvent.EVAL else eval_step
         self.log(f"{event.value}/{key}", value, t)
 
@@ -216,11 +226,17 @@ class JsonLogger(BaseLogger):
     """Json logger for marl-eval."""
 
     # These are the only metrics that marl-eval needs to plot.
-    _METRICS_TO_LOG: ClassVar[List[str]] = ["episode_return/mean", "win_rate", "steps_per_second"]
+    _METRICS_TO_LOG: ClassVar[List[str]] = [
+        "episode_return/mean",
+        "win_rate",
+        "steps_per_second",
+    ]
 
     def __init__(self, cfg: DictConfig, unique_token: str) -> None:
         json_exp_path = get_logger_path(cfg, "json")
-        json_logs_path = os.path.join(cfg.logger.base_exp_path, f"{json_exp_path}/{unique_token}")
+        json_logs_path = os.path.join(
+            cfg.logger.base_exp_path, f"{json_exp_path}/{unique_token}"
+        )
 
         # if a custom path is specified, use that instead
         if cfg.logger.kwargs.json_path is not None:
@@ -236,7 +252,9 @@ class JsonLogger(BaseLogger):
             seed=cfg.system.seed,
         )
 
-    def log_stat(self, key: str, value: float, step: int, eval_step: int, event: LogEvent) -> None:
+    def log_stat(
+        self, key: str, value: float, step: int, eval_step: int, event: LogEvent
+    ) -> None:
         # Only write key if it's in the list of metrics to log.
 
         if key not in self._METRICS_TO_LOG:
@@ -272,14 +290,18 @@ class ConsoleLogger(BaseLogger):
         self.logger.handlers = []
 
         ch = logging.StreamHandler()
-        formatter = logging.Formatter(f"{Fore.CYAN}{Style.BRIGHT}%(message)s", "%H:%M:%S")
+        formatter = logging.Formatter(
+            f"{Fore.CYAN}{Style.BRIGHT}%(message)s", "%H:%M:%S"
+        )
         ch.setFormatter(formatter)
         self.logger.addHandler(ch)
 
         # Set to info to suppress debug outputs.
         self.logger.setLevel("INFO")
 
-    def log_stat(self, key: str, value: float, step: int, eval_step: int, event: LogEvent) -> None:
+    def log_stat(
+        self, key: str, value: float, step: int, eval_step: int, event: LogEvent
+    ) -> None:
         colour = self._EVENT_COLOURS[event]
 
         # Replace underscores with spaces and capitalise keys.

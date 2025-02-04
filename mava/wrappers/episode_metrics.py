@@ -43,6 +43,8 @@ class RecordEpisodeMetricsState:
     episode_return: chex.Numeric
     episode_length: chex.Numeric
 
+    # actions: chex.Numeric
+
 
 class RecordEpisodeMetrics(Wrapper):
     """Record the episode returns and lengths."""
@@ -68,6 +70,10 @@ class RecordEpisodeMetrics(Wrapper):
             jnp.array(0, dtype=int),
             jnp.array(0.0, dtype=float),
             jnp.array(0, dtype=int),
+            # jnp.zeros(
+            #     (*timestep.observation.action_mask.shape, self.num_agents),
+            #     dtype=jnp.int32,
+            # ),
         )
         timestep.extras["episode_metrics"] = {
             "episode_return": jnp.array(0.0, dtype=float),
@@ -88,12 +94,18 @@ class RecordEpisodeMetrics(Wrapper):
         not_done = 1 - done
 
         # Counting episode return and length.
-        new_episode_return = state.running_count_episode_return + jnp.mean(timestep.reward)
+        new_episode_return = state.running_count_episode_return + jnp.mean(
+            timestep.reward
+        )
         new_episode_length = state.running_count_episode_length + 1
 
         # Previous episode return/length until done and then the next episode return.
-        episode_return_info = state.episode_return * not_done + new_episode_return * done
-        episode_length_info = state.episode_length * not_done + new_episode_length * done
+        episode_return_info = (
+            state.episode_return * not_done + new_episode_return * done
+        )
+        episode_length_info = (
+            state.episode_length * not_done + new_episode_length * done
+        )
 
         timestep.extras["episode_metrics"] = {
             "episode_return": episode_return_info,
@@ -108,11 +120,14 @@ class RecordEpisodeMetrics(Wrapper):
             running_count_episode_length=new_episode_length * not_done,
             episode_return=episode_return_info,
             episode_length=episode_length_info,
+            # actions=action,
         )
         return state, timestep
 
 
-def get_final_step_metrics(metrics: Dict[str, chex.Array]) -> Tuple[Dict[str, chex.Array], bool]:
+def get_final_step_metrics(
+    metrics: Dict[str, chex.Array]
+) -> Tuple[Dict[str, chex.Array], bool]:
     """Get the metrics for the final step of an episode and check if there was a final step
     within the provided metrics.
 
