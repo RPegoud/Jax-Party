@@ -85,6 +85,7 @@ class PPOTransition(NamedTuple):
     reward: chex.Array
     log_prob: chex.Array
     obs: Observation
+    # info: dict
 
 
 class RNNPPOTransition(NamedTuple):

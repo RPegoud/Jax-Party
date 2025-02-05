@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import math
 import time
 import warnings
@@ -112,7 +113,9 @@ def get_eval_fn(
             stacklevel=2,
         )
 
-    def eval_fn(params: FrozenDict, key: PRNGKey, init_act_state: ActorState) -> Metrics:
+    def eval_fn(
+        params: FrozenDict, key: PRNGKey, init_act_state: ActorState
+    ) -> Metrics:
         """Evaluates the given params on an environment and returns relevent metrics.
 
         Metrics are collected by the `RecordEpisodeMetrics` wrapper: episode return and length,
@@ -121,7 +124,9 @@ def get_eval_fn(
         Returns: Dict[str, Array] - dictionary of metric name to metric values for each episode.
         """
 
-        def _env_step(eval_state: _EvalEnvStepState, _: Any) -> Tuple[_EvalEnvStepState, TimeStep]:
+        def _env_step(
+            eval_state: _EvalEnvStepState, _: Any
+        ) -> Tuple[_EvalEnvStepState, TimeStep]:
             """Performs a single environment step"""
             env_state, ts, key, actor_state = eval_state
 
@@ -138,7 +143,9 @@ def get_eval_fn(
             env_state, ts = jax.vmap(env.reset)(reset_keys)
 
             step_state = env_state, ts, key, init_act_state
-            _, timesteps = jax.lax.scan(_env_step, step_state, jnp.arange(env.time_limit + 1))
+            _, timesteps = jax.lax.scan(
+                _env_step, step_state, jnp.arange(env.time_limit + 1)
+            )
 
             metrics = timesteps.extras["episode_metrics"]
             if config.env.log_win_rate:
@@ -147,7 +154,9 @@ def get_eval_fn(
             # find the first instance of done to get the metrics at that timestep, we don't
             # care about subsequent steps because we only the results from the first episode
             done_idx = jnp.argmax(timesteps.last(), axis=0)
-            metrics = tree.map(lambda m: m[done_idx, jnp.arange(n_vmapped_envs)], metrics)
+            metrics = tree.map(
+                lambda m: m[done_idx, jnp.arange(n_vmapped_envs)], metrics
+            )
             del metrics["is_terminal_step"]  # uneeded for logging
 
             return key, metrics
@@ -159,7 +168,9 @@ def get_eval_fn(
         metrics = tree.map(lambda x: x.reshape(-1), metrics)  # flatten metrics
         return metrics
 
-    def timed_eval_fn(params: FrozenDict, key: PRNGKey, init_act_state: ActorState) -> Metrics:
+    def timed_eval_fn(
+        params: FrozenDict, key: PRNGKey, init_act_state: ActorState
+    ) -> Metrics:
         """Wrapper around eval function to time it and add in steps per second metric."""
         start_time = time.time()
 
@@ -188,7 +199,9 @@ def make_ff_eval_act_fn(actor_apply_fn: ActorApply, config: DictConfig) -> EvalA
     return eval_act_fn
 
 
-def make_rec_eval_act_fn(actor_apply_fn: RecActorApply, config: DictConfig) -> EvalActFn:
+def make_rec_eval_act_fn(
+    actor_apply_fn: RecActorApply, config: DictConfig
+) -> EvalActFn:
     """Makes an act function that conforms to the evaluator API given a standard
     recurrent mava actor network."""
 
@@ -254,7 +267,9 @@ def get_sebulba_eval_fn(
             stacklevel=2,
         )
 
-    def eval_fn(params: FrozenDict, key: PRNGKey, init_act_state: ActorState) -> Metrics:
+    def eval_fn(
+        params: FrozenDict, key: PRNGKey, init_act_state: ActorState
+    ) -> Metrics:
         """Evaluates the given params on an environment and returns relevent metrics.
 
         Metrics are collected by the `RecordEpisodeMetrics` wrapper: episode return and length,
@@ -267,7 +282,9 @@ def get_sebulba_eval_fn(
             """Simulates `num_envs` episodes."""
 
             # Generate a list of random seeds within the 32-bit integer range, using a seeded RNG.
-            seeds = np_rng.integers(np.iinfo(np.int32).max, size=n_parallel_envs).tolist()
+            seeds = np_rng.integers(
+                np.iinfo(np.int32).max, size=n_parallel_envs
+            ).tolist()
             ts = env.reset(seed=seeds)
 
             timesteps_array = [ts]
@@ -293,7 +310,9 @@ def get_sebulba_eval_fn(
             # find the first instance of done to get the metrics at that timestep, we don't
             # care about subsequent steps because we only the results from the first episode
             done_idx = np.argmax(timesteps.last(), axis=0)
-            metrics = tree.map(lambda m: m[done_idx, np.arange(n_parallel_envs)], metrics)
+            metrics = tree.map(
+                lambda m: m[done_idx, np.arange(n_parallel_envs)], metrics
+            )
             del metrics["is_terminal_step"]  # uneeded for logging
 
             return key, metrics
@@ -310,7 +329,9 @@ def get_sebulba_eval_fn(
         metrics: Metrics = tree.map(lambda *x: np.array(x).reshape(-1), *metrics_array)
         return metrics
 
-    def timed_eval_fn(params: FrozenDict, key: PRNGKey, init_act_state: ActorState) -> Metrics:
+    def timed_eval_fn(
+        params: FrozenDict, key: PRNGKey, init_act_state: ActorState
+    ) -> Metrics:
         """Wrapper around eval function to time it and add in steps per second metric."""
         start_time = time.time()
 

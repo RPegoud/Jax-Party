@@ -27,6 +27,7 @@ from flax.core.frozen_dict import FrozenDict
 from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
+from jax_party import register_JaxParty
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -115,7 +116,7 @@ def get_learner_fn(
                 timestep.reward,
                 log_prob,
                 last_timestep.observation,
-            )
+            )  # TODO: log transition
             learner_state = LearnerState(
                 params, opt_states, key, env_state, timestep, done
             )
@@ -513,7 +514,7 @@ def run_experiment(_config: DictConfig) -> float:
         # Train.
         start_time = time.time()
 
-        learner_output = learn(learner_state)
+        learner_output = learn(learner_state)  # TODO: log here
         jax.block_until_ready(learner_output)
 
         # Log the results of the training.
@@ -594,15 +595,6 @@ def hydra_entry_point(cfg: DictConfig) -> float:
     eval_performance = run_experiment(cfg)
     print(f"{Fore.CYAN}{Style.BRIGHT}IPPO experiment completed{Style.RESET_ALL}")
     return eval_performance
-
-
-def register_JaxParty():
-    from jumanji.registration import register, registered_environments
-
-    register("JaxParty-v0", "jax_party.env:JaxParty")
-
-    assert "JaxParty-v0" in registered_environments()
-    print(f"{Fore.GREEN}JaxParty-v0 registered successfully!{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":

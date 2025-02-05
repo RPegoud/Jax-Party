@@ -1,6 +1,6 @@
 from typing import Optional, Sequence, Tuple
 
-from colorama import Fore
+from colorama import Fore, Style
 from jax_party import Action, State, Observation, tree_slice
 from jumanji.types import TimeStep, restart, termination, transition
 
@@ -13,6 +13,15 @@ import chex
 from functools import cached_property
 
 from mava.wrappers.jumanji import JumanjiMarlWrapper
+
+
+def register_JaxParty():
+    from jumanji.registration import register, registered_environments
+
+    register("JaxParty-v0", "jax_party.env:JaxParty")
+
+    assert "JaxParty-v0" in registered_environments()
+    print(f"{Fore.GREEN}JaxParty-v0 registered successfully!{Style.RESET_ALL}")
 
 
 def _get_action_mask(is_active: chex.Scalar) -> chex.Array:
@@ -73,6 +82,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
     ):
         self.env_name = "JaxParty-v0"
         self.num_agents = 3
+        self.num_actions = 2
         self.time_limit = time_limit
         self.rank_based_reward = rank_based_reward
         self.ranking_to_reward_mapping = jnp.array(
@@ -99,9 +109,6 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         )
         self.generator = generator
         super().__init__()
-
-    # TODO: add reward_fn based on ranking
-    # TODO: consider random tie-breaks for ranking-based rewards
 
     def reset(self, key: chex.PRNGKey) -> Tuple[State, TimeStep[Observation]]:
         state = self.generator(key)
@@ -185,7 +192,8 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
 
     def _get_rewards(self, state: State, actions: chex.Array) -> chex.Array:
         """
-        Querries the payoff matrix for the rewards of the active agents.
+        Querries the payoff matrix for the rewards of the active agents and adds
+        the ranking-based reward.
         """
         active_agents_indices = jnp.where(state.active_agents == 1, size=2)[0]
         active_agents_actions = actions.at[active_agents_indices].get()
