@@ -592,7 +592,7 @@ def run_experiment(_config: DictConfig) -> float:
         # Train.
         start_time = time.time()
 
-        learner_output, experience_to_store = learn(learner_state)  # TODO: fix
+        learner_output, experience_to_store = learn(learner_state)
 
         # Record data into the vault
         if SAVE_VAULT:
