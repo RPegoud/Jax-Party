@@ -14,7 +14,7 @@
 
 import copy
 import time
-from typing import Any, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import chex
 import flashbax as fbx
@@ -41,6 +41,7 @@ from mava.types import (
     ExperimentOutput,
     LearnerFn,
     MarlEnv,
+    MavaState,
     Metrics,
 )
 from mava.utils import make_env as environments
@@ -63,13 +64,17 @@ VAULT_NAME = "ff_ippo_jaxparty"
 VAULT_UID = None  # None => timestamp
 VAULT_SAVE_INTERVAL = 5
 
+StoreExpLearnerFn = Callable[
+    [MavaState], Tuple[ExperimentOutput[MavaState], PPOTransition]
+]
+
 
 def get_learner_fn(
     env: MarlEnv,
     apply_fns: Tuple[ActorApply, CriticApply],
     update_fns: Tuple[optax.TransformUpdateFn, optax.TransformUpdateFn],
     config: DictConfig,
-) -> LearnerFn[LearnerState]:
+) -> StoreExpLearnerFn[LearnerState]:
     """Get the learner function."""
     # Get apply and update functions for actor and critic networks.
     actor_apply_fn, critic_apply_fn = apply_fns
@@ -345,7 +350,7 @@ def get_learner_fn(
 
 def learner_setup(
     env: MarlEnv, keys: chex.Array, config: DictConfig
-) -> Tuple[LearnerFn[LearnerState], Actor, LearnerState]:
+) -> Tuple[StoreExpLearnerFn[LearnerState], Actor, LearnerState]:
     """Initialise learner_fn, network, optimiser, environment and states."""
     # Get available TPU cores.
     n_devices = len(jax.devices())
@@ -543,7 +548,7 @@ def run_experiment(_config: DictConfig) -> float:
     }
 
     buffer = fbx.make_flat_buffer(
-        max_length=int(5e5),  # Max number of transitions to store
+        max_length=int(1e6),  # Max number of transitions to store
         min_length=int(1),
         sample_batch_size=1,
         add_sequences=True,
