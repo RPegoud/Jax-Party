@@ -4,6 +4,7 @@ defaults:
   - system: ppo/ff_ippo
   - network: mlp  # [mlp, cnn]
   - env: jax-party  # [cleaner, connector, vector-connector, gigastep, lbf, mabrax, matrax, rware, smax, mpe]
+  - vault: party_vault
   - _self_
 
 hydra:
