@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable, Dict
 from colorama import Fore, Style
 import flashbax as fbx
@@ -37,19 +38,27 @@ class PartyVault(Vault):
         self.save_interval = save_interval
         self.buffer_add = buffer_add
 
-    @jax.jit
+    @partial(jax.jit, static_argnames="self")
     def _reshape_experience(
         self,
         experience: Dict[str, chex.Array],
     ) -> Dict[str, chex.Array]:
         """Reshape experience to match buffer."""
+        # Shape legend:
+        # D: Number of devices
+        # NU: Number of updates per evaluation
+        # UB: Update batch size
+        # T: Time steps per rollout
+        # NE: Number of environments
         # Swap the T and NE axes (D, NU, UB, T, NE, ...) -> (D, NU, UB, NE, T, ...)
         experience = jax.tree.map(lambda x: x.swapaxes(3, 4), experience)
         # Merge 4 leading dimensions into 1. (D, NU, UB, NE, T ...) -> (D * NU * UB * NE, T, ...)
         experience = jax.tree.map(lambda x: x.reshape(-1, *x.shape[4:]), experience)
         return experience
 
-    def add_and_write(self, experience: Experience, eval_step: int):
+    def add_and_write(
+        self, buffer_state: BufferState, experience: Experience, eval_step: int
+    ) -> BufferState:
         flashbax_transition = self._reshape_experience(
             {
                 # (D, NU, UB, T, NE, ...)
@@ -69,8 +78,9 @@ class PartyVault(Vault):
             print(
                 f"{Fore.WHITE}{Style.BRIGHT}(Wrote {write_length}) Vault index = {self.vault_index}{Style.RESET_ALL}"
             )
+        return buffer_state
 
-    def push_vault_to_neptune(self):  # TODO:
+    def push_to_neptune(self):  # TODO:
         raise NotImplementedError
 
 

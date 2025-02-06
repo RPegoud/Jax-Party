@@ -29,7 +29,7 @@ from flax.core.frozen_dict import FrozenDict
 from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
-from jax_party import register_JaxParty
+from jax_party import register_JaxParty, PartyVault, make_buffer_and_vault
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -523,72 +523,7 @@ def run_experiment(_config: DictConfig) -> float:
             **config.logger.checkpointing.save_args,  # Checkpoint args
         )
 
-    # Flashbax setup
-    dummy_flashbax_transition = {
-        "done": jnp.zeros((config.system.num_agents,), dtype=bool),
-        "action": jnp.zeros(
-            (config.system.num_agents,), dtype=jnp.int32
-        ),  # TODO: convert to int8
-        "reward": jnp.zeros((config.system.num_agents,), dtype=jnp.float32),
-        "observation": jnp.zeros(
-            (
-                config.system.num_agents,
-                env.observation_spec.agents_view.shape[1],
-            ),
-            dtype=jnp.float32,
-        ),
-        "legal_action_mask": jnp.zeros(
-            (
-                config.system.num_agents,
-                # config.system.num_actions,
-                env.num_actions,
-            ),
-            dtype=bool,
-        ),
-    }
-
-    buffer = fbx.make_flat_buffer(
-        max_length=int(1e6),  # Max number of transitions to store
-        min_length=int(1),
-        sample_batch_size=1,
-        add_sequences=True,
-        add_batch_size=(
-            n_devices
-            * config.system.num_updates_per_eval
-            * config.system.update_batch_size
-            * config.arch.num_envs
-        ),
-    )
-    buffer_state = buffer.init(
-        dummy_flashbax_transition,
-    )
-    buffer_add = jax.jit(buffer.add, donate_argnums=(0))
-
-    # Shape legend:
-    # D: Number of devices
-    # NU: Number of updates per evaluation
-    # UB: Update batch size
-    # T: Time steps per rollout
-    # NE: Number of environments
-
-    @jax.jit
-    def _reshape_experience(experience: Dict[str, chex.Array]) -> Dict[str, chex.Array]:
-        """Reshape experience to match buffer."""
-        # Swap the T and NE axes (D, NU, UB, T, NE, ...) -> (D, NU, UB, NE, T, ...)
-        experience = tree.map(lambda x: x.swapaxes(3, 4), experience)
-        # Merge 4 leading dimensions into 1. (D, NU, UB, NE, T ...) -> (D * NU * UB * NE, T, ...)
-        experience = tree.map(lambda x: x.reshape(-1, *x.shape[4:]), experience)
-        return experience
-
-    # Use vault to record experience
-    if SAVE_VAULT:
-        vault = Vault(
-            vault_name=VAULT_NAME,
-            experience_structure=buffer_state.experience,
-            vault_uid=VAULT_UID,
-            # Metadata must be a python dictionary
-            metadata=OmegaConf.to_container(config, resolve=True),
-        )
+    buffer_state, vault = make_buffer_and_vault(env, config, vault_id=None)
 
     # Run experiment for a total number of evaluations.
     max_episode_return = -jnp.inf
@@ -598,27 +533,7 @@ def run_experiment(_config: DictConfig) -> float:
         start_time = time.time()
 
         learner_output, experience_to_store = learn(learner_state)
-
-        # Record data into the vault
-        if SAVE_VAULT:
-            # Pack transition
-            flashbax_transition = _reshape_experience(
-                {
-                    # (D, NU, UB, T, NE, ...)
-                    "done": experience_to_store.done,
-                    "action": experience_to_store.action,
-                    "reward": experience_to_store.reward,
-                    "observation": experience_to_store.obs.agents_view,
-                    "legal_action_mask": experience_to_store.obs.action_mask,
-                }
-            )
-            # Add to fbx buffer
-            buffer_state = buffer_add(buffer_state, flashbax_transition)
-
-            # Save buffer into vault
-            if eval_step % VAULT_SAVE_INTERVAL == 0:
-                write_length = vault.write(buffer_state)
-                print(f"(Wrote {write_length}) Vault index = {vault.vault_index}")
+        buffer_state = vault.add_and_write(buffer_state, experience_to_store, eval_step)
 
         jax.block_until_ready(learner_output)
 
