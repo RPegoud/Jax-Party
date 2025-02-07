@@ -87,6 +87,11 @@ def aggregate_outputs(alg_name: str):
     if latest_config_path:
         shutil.copy(latest_config_path, os.path.join(target_dir, "config.yaml"))
 
+    # Remove original folders after moving data
+    for folder in ["vaults", "results", "outputs", "checkpoints"]:
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+
     print(f"{Fore.WHITE}{Style.BRIGHT}Aggregation complete for {alg_name}!")
     print(f"Output path: {target_dir}{Style.RESET_ALL}")
 
