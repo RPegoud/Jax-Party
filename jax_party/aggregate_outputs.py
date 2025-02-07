@@ -3,6 +3,24 @@ import shutil
 from datetime import datetime
 from colorama import Fore, Style
 import argparse
+import neptune
+
+
+def upload_folder(folder_path: str, destination: str = "experiment_outputs"):
+    run = neptune.init_run(
+        project="Jax-Party/JaxParty",
+        api_token=os.getenv("NEPTUNE_API_TOKEN"),
+    )
+
+    """Upload all files in a folder to Neptune"""
+    if os.path.exists(folder_path):
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                full_path = os.path.join(root, file)
+                neptune_path = os.path.join(
+                    destination, os.path.relpath(full_path, folder_path)
+                )
+                run[f"artifacts/{neptune_path}"].upload(full_path)
 
 
 def extract_timestamp(folder_name: str):
