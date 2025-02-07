@@ -29,7 +29,12 @@ from flax.core.frozen_dict import FrozenDict
 from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
-from jax_party import register_JaxParty, PartyVault, make_buffer_and_vault
+from jax_party import (
+    register_JaxParty,
+    PartyVault,
+    make_buffer_and_vault,
+    aggregate_outputs,
+)
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -623,3 +628,4 @@ def hydra_entry_point(cfg: DictConfig) -> float:
 if __name__ == "__main__":
     register_JaxParty()
     hydra_entry_point()
+    aggregate_outputs(alg_name="ff_ippo")
