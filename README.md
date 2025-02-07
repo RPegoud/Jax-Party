@@ -9,6 +9,7 @@ from jax_party import register_JaxParty
 if __name__ == "__main__":
     >> register_JaxParty()
     hydra_entry_point() # this line runs fetches the hydra config and runs the experiment
+    aggregate_outputs(alg_name="ff_ippo") # aggregates all the results and checkpoints in a single folder indexed by timestamp
 ```
 
 ## 🚀 How to run an experiment:
@@ -45,25 +46,26 @@ In the current setup, all experiment outputs computed on test episodes will be l
     └── <algorithm_name>/
         ├── <year-month-day>/
         │   ├── <hours-minutes-seconds>
-                └── checkpoints # parameter checkpoints recorded throughout training
-                └── metrics     # aggregated metrics (e.g. mean return)
-                └── vault       # trajectories (actions, observations, rewards, ...)
+                └── checkpoints            # parameter checkpoints recorded throughout training
+                └── metrics                # aggregated metrics (e.g. mean return)
+                └── vaults/jax_party/<uid> # trajectories (actions, observations, rewards, ...)
 ```
 
-Trajectories in a [Flashbax Vault](https://github.com/instadeepai/flashbax), for now this is only done in the `ff_ippo_vault.py` script and will be added to other architectures soon. For IPPO, these trajectories include batches of:
+Trajectories are stored in a [Flashbax Vault](https://github.com/instadeepai/flashbax), for now this is only done in the `ff_ippo_vault.py` script and will be added to other architectures soon. For IPPO, these trajectories include batches of:
 * ``last_done`` # boolean flag indicating whether the episode terminated
 * ``action`` # actions chosen by all the agents
 * ``value`` # output value of the critic network
 * ``timestep.reward``
 * ``log_prob`` # log prob of the actor network
 * ``last_timestep.observation``
-These are stored in `.vaults/<script_name>_jaxparty/uid` and can be read using the following snippet (see `./vault_reading.ipynb`):
+These can be read using the following snippet (see `./vault_reading.ipynb`):
 ```python
 from flashbax.vault import Vault
 
 v = Vault(
-    vault_name="ff_ippo_jaxparty",
-    vault_uid="20250205182200",
+    rel_dir="experiment_results/ff_ippo/25-02-07/13-18-26/vaults",
+    vault_name="jax_party",
+    vault_uid="20250207131826",
 )
 buffer_state = v.read()
 
