@@ -34,7 +34,7 @@ def aggregate_outputs(alg_name: str):
     latest_metrics = get_latest_folder(results_dir)
     latest_checkpoint = get_latest_folder(checkpoints_dir)
 
-    # get the latest config.yaml from outputs
+    # Get the latest config.yaml from outputs
     latest_config_path = None
     for date_folder in sorted(os.listdir(outputs_dir), reverse=True):
         date_path = os.path.join(outputs_dir, date_folder)
@@ -56,14 +56,14 @@ def aggregate_outputs(alg_name: str):
     date_str = dt.strftime("%y-%m-%d")
     time_str = dt.strftime("%H-%M-%S")
     target_dir = os.path.join(experiment_results_dir, date_str, time_str)
+    vault_target_dir = os.path.join(target_dir, "vaults/jax_party", latest_vault)
 
-    os.makedirs(target_dir, exist_ok=True)
+    os.makedirs(vault_target_dir, exist_ok=True)
 
-    # move vault, metrics and checkpoint
-    shutil.move(
-        os.path.join(vaults_dir, latest_vault), os.path.join(target_dir, "vault")
-    )
+    # Move vault
+    shutil.move(vaults_dir, vault_target_dir)
 
+    # Move metrics
     if latest_metrics:
         os.makedirs(os.path.join(target_dir, "metrics"), exist_ok=True)
         shutil.move(
@@ -75,6 +75,7 @@ def aggregate_outputs(alg_name: str):
     if os.path.exists(metrics_file):
         shutil.move(metrics_file, os.path.join(target_dir, "metrics/metrics.json"))
 
+    # Move checkpoint
     if latest_checkpoint:
         os.makedirs(os.path.join(target_dir, "checkpoints"), exist_ok=True)
         shutil.move(
@@ -82,13 +83,12 @@ def aggregate_outputs(alg_name: str):
             os.path.join(target_dir, "checkpoints"),
         )
 
-    # copy latest config.yaml
+    # Copy latest config.yaml
     if latest_config_path:
         shutil.copy(latest_config_path, os.path.join(target_dir, "config.yaml"))
 
-    print(
-        f"{Fore.WHITE}{Style.BRIGHT}Aggregation complete for {alg_name}!{Style.RESET_ALL}"
-    )
+    print(f"{Fore.WHITE}{Style.BRIGHT}Aggregation complete for {alg_name}!")
+    print(f"Output path: {target_dir}{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":

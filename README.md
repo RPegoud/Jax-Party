@@ -38,8 +38,19 @@ Each algorithm is configured using [Hydra](https://hydra.cc), this means that al
         └── system/
             └── *algorithms # algorithms default hyperparams
 ```
-In the current setup, aggregated metrics computed on test episodes will be logged in `./results/json/<script_name>/uid`. Those metrics include the mean return, which might not be useful in our case.
-Additionally, we collect trajectories in a [Flashbax Vault](https://github.com/instadeepai/flashbax), for now this is only done in the `ff_ippo_vault.py` script and will be added to other architectures soon. For IPPO, these trajectories include batches of:
+In the current setup, all experiment outputs computed on test episodes will be logged in ``./experiment_results/<algorithm_name>/<year-month-day>/<hours-minutes-seconds>``.
+```
+.
+└── experiment_results/
+    └── <algorithm_name>/
+        ├── <year-month-day>/
+        │   ├── <hours-minutes-seconds>
+                └── checkpoints # parameter checkpoints recorded throughout training
+                └── metrics     # aggregated metrics (e.g. mean return)
+                └── vault       # trajectories (actions, observations, rewards, ...)
+```
+
+Trajectories in a [Flashbax Vault](https://github.com/instadeepai/flashbax), for now this is only done in the `ff_ippo_vault.py` script and will be added to other architectures soon. For IPPO, these trajectories include batches of:
 * ``last_done`` # boolean flag indicating whether the episode terminated
 * ``action`` # actions chosen by all the agents
 * ``value`` # output value of the critic network
