@@ -24,7 +24,7 @@ checkpointing:
   save_args:
     save_interval_steps: 1 # Number of steps between saving checkpoints.
     max_to_keep: 1 # Maximum number of checkpoints to keep.
-    keep_period: 10 # Don't delete any checkpoint where step % keep_period == 0
+    keep_period: 40 # Don't delete any checkpoint where step % keep_period == 0
     checkpoint_uid: ~ # Unique identifier for checkpoint to save. Defaults to timestamp
 
   load_model: False # Whether to load model checkpoints.
