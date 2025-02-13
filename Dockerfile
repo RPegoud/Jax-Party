@@ -21,3 +21,6 @@ RUN if [ "$USE_CUDA" = true ] ; \
     fi
 
 EXPOSE 6006
+EXPOSE 8888
+
+# ENTRYPOINT [ "jupyter lab --ip='*'" ] 
