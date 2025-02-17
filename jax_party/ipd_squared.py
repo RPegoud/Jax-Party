@@ -185,7 +185,7 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         power = jax.vmap(self._update_power)(power, inner_actions, outer_payoffs).squeeze()
         rewards = (power * outer_payoffs).flatten()
 
-        history = jnp.tile(inner_actions.flatten(), (self.num_agents, 1))
+        history = inner_actions.flatten()
 
         steps = state.step_count + 1
         done = steps >= self.time_limit

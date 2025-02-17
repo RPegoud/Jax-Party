@@ -2,7 +2,6 @@ from enum import IntEnum
 from typing import NamedTuple, Optional, Sequence, Tuple
 
 from colorama import Fore, Style
-from utils import tree_slice
 from jumanji.types import TimeStep, restart, termination, transition
 
 from jumanji.env import Environment
