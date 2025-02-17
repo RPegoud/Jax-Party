@@ -14,6 +14,9 @@ from functools import cached_property
 
 from mava.wrappers.jumanji import JumanjiMarlWrapper
 
+NUM_AGENTS = 3
+NUM_ACTIONS = 2
+
 
 def register_JaxParty():
     from jumanji.registration import register, registered_environments
@@ -35,13 +38,21 @@ def _get_action_mask(is_active: chex.Scalar) -> chex.Array:
     )
 
 
+def _random_tie_break(key: chex.PRNGKey, ranking: chex.Array) -> chex.Array:
+    """Randomly breaks the ranking ties."""
+    _, inverse_indices = jnp.unique(ranking, return_inverse=True, size=NUM_AGENTS)
+    tie_break_noise = jax.random.permutation(key, jnp.arange(len(ranking)))
+    sorted_indices = jnp.argsort(inverse_indices + tie_break_noise * 1e-6)
+    return jnp.argsort(sorted_indices)
+
+
 class PartyGenerator:
     """
-    Generator for the JaxParty Environment.
+    Generator for the JaxParty Environment (essentially the reset function).
     """
 
     def __init__(self, **kwargs):
-        self.num_agents = 3
+        self.num_agents = NUM_AGENTS
         self.POSSIBLE_MATCHUPS = jnp.array(
             [
                 [1, 1, 0],
@@ -51,9 +62,11 @@ class PartyGenerator:
         )
 
     def __call__(self, key: chex.PRNGKey) -> State:
-        active_agents = jax.random.choice(key, self.POSSIBLE_MATCHUPS, shape=())
+        key, action_key, tie_break_key = jax.random.split(key, num=3)
+        active_agents = jax.random.choice(action_key, self.POSSIBLE_MATCHUPS, shape=())
         action_mask = jax.vmap(_get_action_mask)(active_agents)
         ranking = jnp.zeros(self.num_agents, dtype=jnp.int32)
+        ranking = _random_tie_break(tie_break_key, ranking)
         cumulative_rewards = jnp.zeros(self.num_agents)
         next_key, _ = jax.random.split(key)
 
@@ -81,8 +94,8 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         time_limit: int = 4000,
     ):
         self.env_name = "JaxParty-v0"
-        self.num_agents = 3
-        self.num_actions = 2
+        self.num_agents = NUM_AGENTS
+        self.num_actions = NUM_ACTIONS
         self.time_limit = time_limit
         self.rank_based_reward = rank_based_reward
         self.ranking_to_reward_mapping = jnp.array(
@@ -95,16 +108,10 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
                 [0, 1, 1],
             ],
         )
-        self.PAYOFF_MATRIX_AGENT_1 = jnp.array(
+        self.PAYOFF_MATRIX = jnp.array(
             [
                 [3, 0],  # COOPERATE row
                 [5, 1],  # DEFECT row
-            ]
-        )
-        self.PAYOFF_MATRIX_AGENT_2 = jnp.array(
-            [
-                [3, 5],  # COOPERATE row
-                [0, 1],  # DEFECT row
             ]
         )
         self.generator = generator
@@ -112,7 +119,6 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
 
     def reset(self, key: chex.PRNGKey) -> Tuple[State, TimeStep[Observation]]:
         state = self.generator(key)
-
         observation = self._make_observation(state)
         timestep = TimeStep(
             step_type=StepType.FIRST,
@@ -134,7 +140,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         state.cumulative_rewards += rewards
 
         ranking = jnp.argsort(state.cumulative_rewards, descending=True)
-        ranking = self._random_tie_break(tie_break_key, ranking)
+        ranking = _random_tie_break(tie_break_key, ranking)
 
         steps = state.step_count + 1
         done = steps >= self.time_limit
@@ -143,7 +149,6 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
             matchup_key, self.POSSIBLE_MATCHUPS, shape=()
         )
         next_action_mask = jax.vmap(_get_action_mask)(next_active_agents)
-        next_observation = self._make_observation(state)
 
         next_state = State(
             active_agents=next_active_agents,
@@ -153,6 +158,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
             action_mask=next_action_mask,
             key=next_key,
         )
+        next_observation = self._make_observation(next_state) # TODO: did this fix smthg?
 
         timestep = jax.lax.cond(
             done,
@@ -198,7 +204,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         active_agents_indices = jnp.where(state.active_agents == 1, size=2)[0]
         active_agents_actions = actions.at[active_agents_indices].get()
         active_agents_payoffs = tree_slice(
-            [self.PAYOFF_MATRIX_AGENT_1, self.PAYOFF_MATRIX_AGENT_2],
+            [self.PAYOFF_MATRIX, self.PAYOFF_MATRIX.T],
             (active_agents_actions[0], active_agents_actions[1]),
         )
         payoffs = (
@@ -211,15 +217,6 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
         rewards = payoffs + rank_based_rewards
 
         return rewards
-
-    def _random_tie_break(self, key: chex.PRNGKey, ranking: chex.Array) -> chex.Array:
-        """Randomly breaks the ranking ties."""
-        _, inverse_indices = jnp.unique(
-            ranking, return_inverse=True, size=self.num_agents
-        )
-        tie_break_noise = jax.random.permutation(key, jnp.arange(len(ranking)))
-        sorted_indices = jnp.argsort(inverse_indices + tie_break_noise * 1e-6)
-        return jnp.argsort(sorted_indices)
 
     @cached_property
     def observation_spec(self) -> specs.DiscreteArray:

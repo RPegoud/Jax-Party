@@ -5,4 +5,8 @@ task_config:
   time_limit: 4000
 
 env_kwargs:
+<<<<<<< HEAD
   {}  # there are no scenario specific env_kwargs for this env
+=======
+  {}  # there are no scenario specific env_kwargs for this env
+>>>>>>> 9d9a6d02d126c6b2af2b2f8e4caaf236cd34ea58

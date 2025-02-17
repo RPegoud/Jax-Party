@@ -16,4 +16,8 @@ implicit_agent_id: False
 log_win_rate: False
 
 kwargs:
+<<<<<<< HEAD
   time_limit: 4000
+=======
+  time_limit: 4000
+>>>>>>> 9d9a6d02d126c6b2af2b2f8e4caaf236cd34ea58
