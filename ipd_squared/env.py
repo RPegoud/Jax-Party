@@ -12,6 +12,8 @@ import jax.numpy as jnp
 import chex
 from functools import cached_property
 
+from mava.wrappers.jumanji import JumanjiMarlWrapper
+
 # from mava.wrappers.jumanji import JumanjiMarlWrapper
 
 NUM_AGENTS = 4
@@ -184,7 +186,7 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         power = jax.vmap(self._update_power)(power, inner_actions, outer_payoffs).squeeze()
         rewards = (power * outer_payoffs).flatten()
 
-        history = jnp.tile(inner_actions.flatten(), (self.num_agents, 1))
+        history = inner_actions.flatten()
 
         steps = state.step_count + 1
         done = steps >= self.time_limit
@@ -210,7 +212,7 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
 
     @cached_property
     def observation_spec(self) -> specs.DiscreteArray:
-        agents_view = specs.Array((self.num_agents * 3,), jnp.bool_, "agents_view")
+        agents_view = specs.Array((self.num_agents * 2,), jnp.bool_, "agents_view")
         action_mask = specs.Array((len(Action),), jnp.bool_, "action_mask")
         return specs.Spec(
             Observation,
@@ -227,27 +229,27 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         )
 
 
-# class PartyMARLWrapper(JumanjiMarlWrapper):
-#     """
-#     Duplicates the timesteps to extend them to multi-agent format.
-#     """
+class IPDSquaredMARLWrapper(JumanjiMarlWrapper):
+    """
+    Duplicates the timesteps to extend them to multi-agent format.
+    """
 
-#     def __init__(self, env: IPDSquared, add_global_state: bool = False):
-#         super().__init__(env, add_global_state)
-#         self._env: IPDSquared
+    def __init__(self, env: IPDSquared, add_global_state: bool = False):
+        super().__init__(env, add_global_state)
+        self._env: IPDSquared
 
-#     def modify_timestep(self, timestep: TimeStep) -> TimeStep[Observation]:
-#         """Duplicates the observation for each agent."""
-#         replicate = lambda x: jnp.tile(x, self._env.num_agents).reshape(
-#             self._env.num_agents, -1
-#         )
-#         agents_view = replicate(timestep.observation.agents_view)
-#         marl_observation = Observation(agents_view, timestep.observation.action_mask)
-#         marl_timestep = TimeStep(
-#             observation=marl_observation,
-#             reward=timestep.reward,
-#             discount=timestep.discount,
-#             step_type=timestep.step_type,
-#         )
+    def modify_timestep(self, timestep: TimeStep) -> TimeStep[Observation]:
+        """Duplicates the observation for each agent."""
+        replicate = lambda x: jnp.tile(x, self._env.num_agents).reshape(
+            self._env.num_agents, -1
+        )
+        agents_view = replicate(timestep.observation.agents_view)
+        marl_observation = Observation(agents_view, timestep.observation.action_mask)
+        marl_timestep = TimeStep(
+            observation=marl_observation,
+            reward=timestep.reward,
+            discount=timestep.discount,
+            step_type=timestep.step_type,
+        )
 
-#         return marl_timestep
+        return marl_timestep

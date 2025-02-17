@@ -28,6 +28,7 @@ from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
 from jax_party import register_JaxParty
+from ipd_squared import register_IPDSquared
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -598,5 +599,6 @@ def hydra_entry_point(cfg: DictConfig) -> float:
 
 
 if __name__ == "__main__":
-    register_JaxParty()
+    register_IPDSquared()
+    # register_JaxParty()
     hydra_entry_point()

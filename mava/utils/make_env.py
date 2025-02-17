@@ -60,6 +60,7 @@ from mava.wrappers import (
     async_multiagent_worker,
 )
 from jax_party import PartyMARLWrapper
+from ipd_squared import IPDSquaredGenerator, IPDSquaredMARLWrapper
 
 # Registry mapping environment names to their generator and wrapper classes.
 _jumanji_registry = {
@@ -72,6 +73,7 @@ _jumanji_registry = {
     },
     "Cleaner": {"generator": CleanerRandomGenerator, "wrapper": CleanerWrapper},
     "jaxparty": {"generator": PartyGenerator, "wrapper": PartyMARLWrapper},
+    "ipdsquared": {"generator": IPDSquaredGenerator, "wrapper": IPDSquaredMARLWrapper},
 }
 
 # Registry mapping environment names directly to the corresponding wrapper classes.

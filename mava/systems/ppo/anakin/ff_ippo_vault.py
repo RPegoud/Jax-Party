@@ -35,6 +35,7 @@ from jax_party import (
     make_buffer_and_vault,
     aggregate_outputs,
 )
+from ipd_squared import register_IPDSquared
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -626,6 +627,7 @@ def hydra_entry_point(cfg: DictConfig) -> float:
 
 
 if __name__ == "__main__":
-    register_JaxParty()
+    # register_JaxParty()
+    register_IPDSquared()
     hydra_entry_point()
     aggregate_outputs(alg_name="ff_ippo")

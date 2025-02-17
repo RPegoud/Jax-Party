@@ -1,0 +1,10 @@
+name: IPDSquared-v0
+task_name: ipd-base
+
+task_config:
+  time_limit: 1000
+
+env_kwargs:
+  epsilon_min: -0.01
+  epsilon_max: 0.01
+  scaling_factor: 100
