@@ -37,6 +37,7 @@ from jumanji.environments.routing.robot_warehouse.generator import (
 )
 from omegaconf import DictConfig
 
+from ipd_squared import *
 from mava.types import MarlEnv
 from mava.wrappers import (
     AgentIDWrapper,
@@ -70,6 +71,7 @@ _jumanji_registry = {
         "wrapper": VectorConnectorWrapper,
     },
     "Cleaner": {"generator": CleanerRandomGenerator, "wrapper": CleanerWrapper},
+    "ipdsquared": {"generator": IPDSquaredGenerator, "wrapper": IPDSquaredMARLWrapper},
 }
 
 # Registry mapping environment names directly to the corresponding wrapper classes.
