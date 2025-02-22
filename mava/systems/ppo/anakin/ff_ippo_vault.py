@@ -29,7 +29,11 @@ from flax.core.frozen_dict import FrozenDict
 from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
-from ipd_squared import register_IPDSquared, IPDSquaredVault, make_buffer_and_vault
+from ipd_squared import (
+    aggregate_outputs,
+    register_IPDSquared,
+    make_buffer_and_vault,
+)
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -613,15 +617,13 @@ def hydra_entry_point(cfg: DictConfig) -> float:
     """Experiment entry point."""
     # Allow dynamic attributes.
     OmegaConf.set_struct(cfg, False)
-
-    # Run experiment.
+    register_IPDSquared()
     eval_performance = run_experiment(cfg)
     print(f"{Fore.CYAN}{Style.BRIGHT}IPPO experiment completed{Style.RESET_ALL}")
+    aggregate_outputs(alg_name="ff_ippo", env_name=cfg.env.vault_name)
+
     return eval_performance
 
 
 if __name__ == "__main__":
-    # register_JaxParty()
-    register_IPDSquared()
     hydra_entry_point()
-    # aggregate_outputs(alg_name="ff_ippo")

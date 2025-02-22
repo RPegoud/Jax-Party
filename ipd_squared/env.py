@@ -14,7 +14,15 @@ from functools import cached_property
 
 from mava.wrappers.jumanji import JumanjiMarlWrapper
 
-# from mava.wrappers.jumanji import JumanjiMarlWrapper
+
+def register_IPDSquared():
+    from jumanji.registration import register, registered_environments
+
+    register("IPDSquared-v0", "ipd_squared.env:IPDSquared")
+
+    assert "IPDSquared-v0" in registered_environments()
+    print(f"{Fore.GREEN}IPDSquared-v0 registered successfully!{Style.RESET_ALL}")
+
 
 NUM_AGENTS = 4
 NUM_ACTIONS = 2
@@ -39,20 +47,12 @@ class Observation(NamedTuple):
     action_mask: chex.Array
 
 
-def register_IPDSquared():
-    from jumanji.registration import register, registered_environments
-
-    register("IPDSquared-v0", "ipd_squared.env:IPDSquared")
-
-    assert "IPDSquared-v0" in registered_environments()
-    print(f"{Fore.GREEN}IPDSquared-v0 registered successfully!{Style.RESET_ALL}")
-
-
 def _get_action_mask() -> chex.Array:
     """
     Returns legal actions depending on the agent's state.
     """
     return jnp.ones((NUM_AGENTS, NUM_ACTIONS), dtype=jnp.bool_)
+
 
 class IPDSquaredGenerator:
     """
@@ -100,8 +100,8 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         self.time_limit = time_limit
         self.PAYOFF_MATRIX = jnp.array(
             [
-                [1, -4],  # COOPERATE row
-                [4, -1],  # DEFECT row
+                [4, -4],  # COOPERATE row
+                [4, -2],  # DEFECT row
             ]
         )
         self.generator = generator
@@ -137,23 +137,13 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
             update = team_payoff / self.scaling_factor
             return jax.lax.cond(
                 power[0] >= power[1],
-                lambda _: jnp.array(
-                    [
-                        power[0] + update,
-                        power[1] - update,
-                    ]
-                ),
-                lambda _: jnp.array(
-                    [
-                        power[0] - update,
-                        power[1] + update,
-                    ]
-                ),
+                lambda _: jnp.array([power[0] + update, power[1] - update]),
+                lambda _: jnp.array([power[0] - update, power[1] + update]),
                 operand=None,
             )
 
         def _agreement():
-            return power.reshape(2,1)
+            return power.reshape(2, 1)
 
         return jax.lax.cond(
             inner_actions[0] != inner_actions[1],
@@ -167,7 +157,7 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         # TODO: we might want to sample the actions based on power instead of picking greedily
         # TODO: do we want to allow different actions at the local and global level at some point?
 
-        inner_actions = inner_actions.reshape(2,2)
+        inner_actions = inner_actions.reshape(2, 2)
         next_key, epsilon_key = jax.random.split(state.key, num=2)
         epsilons = jax.random.uniform(
             epsilon_key, (2, 1), minval=self.epsilon_min, maxval=self.epsilon_max
@@ -178,12 +168,16 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         outer_actions = jnp.take_along_axis(
             inner_actions, jnp.argmax(power, axis=-1, keepdims=True), axis=-1
         )
-        outer_payoffs = jnp.array([
-            self.PAYOFF_MATRIX[outer_actions[0], outer_actions[1]],
-            self.PAYOFF_MATRIX[outer_actions[1], outer_actions[0]],
-        ])
+        outer_payoffs = jnp.array(
+            [
+                self.PAYOFF_MATRIX[outer_actions[0], outer_actions[1]],
+                self.PAYOFF_MATRIX[outer_actions[1], outer_actions[0]],
+            ]
+        )
 
-        power = jax.vmap(self._update_power)(power, inner_actions, outer_payoffs).squeeze()
+        power = jax.vmap(self._update_power)(
+            power, inner_actions, outer_payoffs
+        ).squeeze()
         rewards = (power * outer_payoffs).flatten()
 
         history = inner_actions.flatten()

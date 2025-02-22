@@ -1,0 +1,8 @@
+name: IPDSquared-v0
+task_name: p-base
+
+task_config:
+  time_limit: 4000
+
+env_kwargs:
+  {}  # there are no scenario specific env_kwargs for this env
