@@ -21,3 +21,6 @@ kwargs:
   epsilon_min: -0.5
   epsilon_max: 0.5
   scaling_factor: 100
+  cc: 2
+  cd: 4
+  dd: -2

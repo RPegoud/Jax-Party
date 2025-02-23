@@ -90,6 +90,9 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         epsilon_max: float,
         scaling_factor: int,
         time_limit: int = 1000,
+        cc: float = 1,
+        cd: float = 4,
+        dd: float = -1,
     ):
         self.env_name = "IPDSquared-v0"
         self.num_agents = NUM_AGENTS
@@ -100,8 +103,8 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         self.time_limit = time_limit
         self.PAYOFF_MATRIX = jnp.array(
             [
-                [4, -4],  # COOPERATE row
-                [4, -2],  # DEFECT row
+                [cc, -cd],  # COOPERATE row
+                [cd, dd],  # DEFECT row
             ]
         )
         self.generator = generator

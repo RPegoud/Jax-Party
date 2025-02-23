@@ -54,10 +54,8 @@ def aggregate_outputs(alg_name: str, env_name: str):
         return
 
     dt = extract_timestamp(latest_vault)
-    date_str = dt.strftime("%y-%m-%d")
-    time_str = dt.strftime("%H-%M-%S")
-    target_dir = os.path.join(experiment_results_dir, date_str, time_str)
-    vault_target_dir = os.path.join(target_dir, f"vaults/{env_name}", latest_vault)
+    target_dir = os.path.join(experiment_results_dir, latest_vault)
+    vault_target_dir = target_dir #os.path.join(target_dir, f"vaults/{env_name}", latest_vault)
 
     os.makedirs(vault_target_dir, exist_ok=True)
 

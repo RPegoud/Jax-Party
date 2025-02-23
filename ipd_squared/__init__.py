@@ -5,4 +5,4 @@ from ipd_squared.env import (
     IPDSquaredMARLWrapper,
 )
 from ipd_squared.vault import make_buffer_and_vault, IPDSquaredVault
-from ipd_squared.aggregate_outputs import aggregate_outputs
+from ipd_squared.aggregate_outputs import aggregate_outputs, get_latest_folder

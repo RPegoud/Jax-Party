@@ -585,7 +585,9 @@ def run_experiment(_config: DictConfig) -> float:
         learner_state = learner_output.learner_state
 
     # Final write to vault for any remaining data
+    time.sleep(2.5)
     vault.write(buffer_state)
+    time.sleep(2.5)
 
     # Record the performance for the final evaluation run.
     eval_performance = float(jnp.mean(eval_metrics[config.env.eval_metric]))
@@ -619,6 +621,7 @@ def hydra_entry_point(cfg: DictConfig) -> float:
     OmegaConf.set_struct(cfg, False)
     register_IPDSquared()
     eval_performance = run_experiment(cfg)
+    # 
     print(f"{Fore.CYAN}{Style.BRIGHT}IPPO experiment completed{Style.RESET_ALL}")
     aggregate_outputs(alg_name="ff_ippo", env_name=cfg.env.vault_name)
 

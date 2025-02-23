@@ -22,3 +22,6 @@ bash:
 
 lab:
 	docker run $(RUN_FLAGS) -p 8889:8888 -v .:/home/app/mava $(IMAGE)  jupyter lab --allow-root --NotebookApp.token='token' --no-browser --ip=0.0.0.0
+
+script:
+	python3 -m mava.systems.ppo.anakin.ff_ippo_vault
