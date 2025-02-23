@@ -174,3 +174,5 @@ results/
 outputs/
 multirun/
 .neptune
+
+experiment_results
