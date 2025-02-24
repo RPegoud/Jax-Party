@@ -27,8 +27,7 @@ from flax.core.frozen_dict import FrozenDict
 from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
-from jax_party import register_JaxParty
-from ipd_squared import register_IPDSquared
+from src import register_IPDSquared, register_JaxParty
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor

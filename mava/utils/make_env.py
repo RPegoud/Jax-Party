@@ -37,8 +37,6 @@ from jumanji.environments.routing.robot_warehouse.generator import (
     RandomGenerator as RwareRandomGenerator,
 )
 from omegaconf import DictConfig
-from ipd_squared import *
-from jax_party import *
 from mava.types import MarlEnv
 from mava.wrappers import (
     AgentIDWrapper,
@@ -61,8 +59,12 @@ from mava.wrappers import (
     VectorConnectorWrapper,
     async_multiagent_worker,
 )
-from jax_party import PartyMARLWrapper
-from ipd_squared import IPDSquaredGenerator, IPDSquaredMARLWrapper
+from src import (
+    IPDSquaredGenerator,
+    IPDSquaredMARLWrapper,
+    PartyGenerator,
+    PartyMARLWrapper,
+)
 
 # Registry mapping environment names to their generator and wrapper classes.
 _jumanji_registry = {
@@ -213,6 +215,7 @@ def make_matrax_env(
     train_env, eval_env = add_extra_wrappers(train_env, eval_env, config)
     return train_env, eval_env
 
+
 # def make_gigastep_env(
 #     config: DictConfig, add_global_state: bool = False
 # ) -> Tuple[MarlEnv, MarlEnv]:
@@ -240,6 +243,7 @@ def make_matrax_env(
 
 #     train_env, eval_env = add_extra_wrappers(train_env, eval_env, config)
 #     return train_env, eval_env
+
 
 def make_gym_env(
     config: DictConfig,

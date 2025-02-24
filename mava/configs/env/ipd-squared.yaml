@@ -24,4 +24,5 @@ kwargs:
   cc: 2
   cd: 4
   dd: -2
+  outer_action_selection: "sampling" # if max, the team action is selected based on the action of the agent with most power, if "sampling", we select the action based on the softmax distribution over powers
 

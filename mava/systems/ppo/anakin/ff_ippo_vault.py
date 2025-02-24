@@ -29,9 +29,10 @@ from flax.core.frozen_dict import FrozenDict
 from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from rich.pretty import pprint
-from ipd_squared import (
+from src import (
     aggregate_outputs,
     register_IPDSquared,
+    register_JaxParty,
     make_buffer_and_vault,
 )
 
@@ -621,6 +622,7 @@ def hydra_entry_point(cfg: DictConfig) -> float:
     # Allow dynamic attributes.
     OmegaConf.set_struct(cfg, False)
     register_IPDSquared()
+    register_JaxParty()
     eval_performance = run_experiment(cfg)
     print(f"{Fore.CYAN}{Style.BRIGHT}IPPO experiment completed{Style.RESET_ALL}")
     aggregate_outputs(alg_name="ff_ippo", env_name=cfg.env.vault_name)
@@ -630,4 +632,3 @@ def hydra_entry_point(cfg: DictConfig) -> float:
 
 if __name__ == "__main__":
     hydra_entry_point()
-
