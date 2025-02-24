@@ -1,0 +1,86 @@
+logger:
+  base_exp_path: results
+  use_console: true
+  use_tb: false
+  use_json: true
+  use_neptune: false
+  kwargs:
+    neptune_project: Instadeep/Mava
+    neptune_tag:
+    - rware
+    detailed_neptune_logging: false
+    json_path: null
+    upload_json_data: false
+  checkpointing:
+    save_model: false
+    save_args:
+      save_interval_steps: 1
+      max_to_keep: 1
+      keep_period: null
+      checkpoint_uid: null
+    load_model: false
+    load_args:
+      checkpoint_uid: ''
+arch:
+  architecture_name: anakin
+  num_envs: 16
+  evaluation_greedy: false
+  num_evaluation: 122
+  num_eval_episodes: 32
+  num_absolute_metric_eval_episodes: 320
+  absolute_metric: true
+system:
+  total_timesteps: null
+  num_updates: 300
+  seed: 42
+  add_agent_id: true
+  actor_lr: 0.00025
+  critic_lr: 0.00025
+  update_batch_size: 2
+  rollout_length: 128
+  ppo_epochs: 4
+  num_minibatches: 2
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  decay_learning_rates: false
+network:
+  actor_network:
+    pre_torso:
+      _target_: mava.networks.torsos.MLPTorso
+      layer_sizes:
+      - 128
+      - 128
+      use_layer_norm: false
+      activation: relu
+  critic_network:
+    pre_torso:
+      _target_: mava.networks.torsos.MLPTorso
+      layer_sizes:
+      - 128
+      - 128
+      use_layer_norm: false
+      activation: relu
+env:
+  env_name: ipdsquared
+  vault_name: ipd_squared
+  eval_metric: episode_return
+  implicit_agent_id: false
+  log_win_rate: false
+  kwargs:
+    time_limit: 4000
+    epsilon_min: -0.5
+    epsilon_max: 0.5
+    scaling_factor: 100
+  scenario:
+    name: IPDSquared-v0
+    task_name: p-base
+    task_config:
+      time_limit: 4000
+    env_kwargs: {}
+vault:
+  vault_name: ipd_squared
+  save_interval: 5

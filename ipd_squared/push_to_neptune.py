@@ -2,7 +2,7 @@ import os
 import neptune
 
 
-def upload_folder(
+def push_to_neptune(
     name: str,
     description: str,
     folder_path: str,

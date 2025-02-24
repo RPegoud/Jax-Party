@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import chex
 from omegaconf import OmegaConf
-from jax_party import JaxParty
+from ipd_squared import IPDSquared
 from typing import TypeVar
 
 Transition = TypeVar("Transition")
@@ -15,7 +15,7 @@ BufferState = TypeVar("BufferState")
 Experience = TypeVar("Experience")
 
 
-class PartyVault(Vault):
+class IPDSquaredVault(Vault):
     def __init__(
         self,
         vault_name,
@@ -78,17 +78,23 @@ class PartyVault(Vault):
         #     print(
         #         f"{Fore.WHITE}{Style.BRIGHT}(Wrote {write_length}) Vault index = {self.vault_index}{Style.RESET_ALL}"
         #     )
-        # return buffer_state
+
+        return buffer_state
+
 
     def push_to_neptune(self):  # TODO:
         raise NotImplementedError
 
 
 def make_buffer_and_vault(
-    env: JaxParty,
+    env: IPDSquared,
     config: dict,
     vault_id: str = None,  # None is converted to timestamp
-) -> tuple[BufferState, PartyVault]:
+) -> tuple[
+    BufferState,
+    IPDSquaredVault,
+]:
+
     # TODO: convert int32 to int8
     n_devices = len(jax.devices())
 
@@ -128,7 +134,7 @@ def make_buffer_and_vault(
         dummy_flashbax_transition,
     )
     buffer_add = jax.jit(buffer.add, donate_argnums=(0))
-    vault = PartyVault(
+    vault = IPDSquaredVault(
         vault_name=config.vault.vault_name,
         experience_structure=buffer_state.experience,
         vault_uid=vault_id,

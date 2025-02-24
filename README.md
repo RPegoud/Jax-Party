@@ -63,7 +63,8 @@ These can be read using the following snippet (see `./vault_reading.ipynb`):
 from flashbax.vault import Vault
 
 v = Vault(
-    rel_dir="experiment_results/ff_ippo/25-02-07/13-18-26/vaults",
+    rel_dir="experiment_results/ff_ippo/20250207131826/vaults",
+
     vault_name="jax_party",
     vault_uid="20250207131826",
 )

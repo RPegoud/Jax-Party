@@ -22,6 +22,7 @@ import jaxmarl
 import jumanji
 import matrax
 
+# from gigastep import ScenarioBuilder
 from jaxmarl.environments.smax import map_name_to_scenario
 from jumanji.environments.routing.cleaner.generator import (
     RandomGenerator as CleanerRandomGenerator,
@@ -36,7 +37,8 @@ from jumanji.environments.routing.robot_warehouse.generator import (
     RandomGenerator as RwareRandomGenerator,
 )
 from omegaconf import DictConfig
-from jax_party import PartyGenerator
+from ipd_squared import *
+from jax_party import *
 from mava.types import MarlEnv
 from mava.wrappers import (
     AgentIDWrapper,
@@ -79,6 +81,8 @@ _jumanji_registry = {
 # Registry mapping environment names directly to the corresponding wrapper classes.
 _matrax_registry = {"Matrax": MatraxWrapper}
 _jaxmarl_registry = {"Smax": SmaxWrapper, "MaBrax": MabraxWrapper, "MPE": MPEWrapper}
+# _gigastep_registry = {"Gigastep": GigastepWrapper}
+
 
 _gym_registry = {
     "RobotWarehouse": UoeWrapper,
@@ -209,6 +213,33 @@ def make_matrax_env(
     train_env, eval_env = add_extra_wrappers(train_env, eval_env, config)
     return train_env, eval_env
 
+# def make_gigastep_env(
+#     config: DictConfig, add_global_state: bool = False
+# ) -> Tuple[MarlEnv, MarlEnv]:
+#     """
+#      Create a Gigastep environment.
+
+#     Args:
+#     ----
+#         env_name (str): The name of the environment to create.
+#         config (Dict): The configuration of the environment.
+#         add_global_state (bool): Whether to add the global state to the observation. Default False.
+
+#     Returns:
+#     -------
+#         A tuple of the environments.
+
+#     """
+#     wrapper = _gigastep_registry[config.env.scenario.name]
+
+#     kwargs = config.env.kwargs
+#     scenario = ScenarioBuilder.from_config(config.env.scenario.task_config)
+
+#     train_env: MarlEnv = wrapper(scenario.make(**kwargs), has_global_state=add_global_state)
+#     eval_env: MarlEnv = wrapper(scenario.make(**kwargs), has_global_state=add_global_state)
+
+#     train_env, eval_env = add_extra_wrappers(train_env, eval_env, config)
+#     return train_env, eval_env
 
 def make_gym_env(
     config: DictConfig,
@@ -274,5 +305,8 @@ def make(config: DictConfig, add_global_state: bool = False) -> Tuple[MarlEnv, M
         return make_jaxmarl_env(config, add_global_state)
     elif env_name in _matrax_registry:
         return make_matrax_env(config, add_global_state)
+    # elif env_name in _gigastep_registry:
+    #     return make_gigastep_env(config, add_global_state)
+
     else:
         raise ValueError(f"{env_name} is not a supported environment.")

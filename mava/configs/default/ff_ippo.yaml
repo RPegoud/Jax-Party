@@ -3,8 +3,8 @@ defaults:
   - arch: anakin
   - system: ppo/ff_ippo
   - network: mlp  # [mlp, cnn]
-  - env: ipd-squared # jax-party  # [cleaner, connector, vector-connector, gigastep, lbf, mabrax, matrax, rware, smax, mpe]
-  - vault: party_vault
+  - env: ipd-squared  # [cleaner, connector, vector-connector, gigastep, lbf, mabrax, matrax, rware, smax, mpe]
+  - vault: config-vault
   - _self_
 
 hydra:

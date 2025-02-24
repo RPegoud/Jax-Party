@@ -22,8 +22,9 @@ def get_latest_folder(base_path: str):
     return max(timestamps, key=extract_timestamp) if timestamps else None
 
 
-def aggregate_outputs(alg_name: str):
-    vaults_dir = "vaults/jax_party"
+def aggregate_outputs(alg_name: str, env_name: str):
+    vaults_dir = f"vaults/{env_name}"
+
     results_dir = os.path.join("results/json", alg_name)
     outputs_dir = "outputs"
     checkpoints_dir = os.path.join("checkpoints", alg_name)
@@ -33,7 +34,7 @@ def aggregate_outputs(alg_name: str):
 
     latest_vault = get_latest_folder(vaults_dir)
     latest_metrics = get_latest_folder(results_dir)
-    latest_checkpoint = get_latest_folder(checkpoints_dir)
+    # latest_checkpoint = get_latest_folder(checkpoints_dir)
 
     # Get the latest config.yaml from outputs
     latest_config_path = None
@@ -54,10 +55,8 @@ def aggregate_outputs(alg_name: str):
         return
 
     dt = extract_timestamp(latest_vault)
-    date_str = dt.strftime("%y-%m-%d")
-    time_str = dt.strftime("%H-%M-%S")
-    target_dir = os.path.join(experiment_results_dir, date_str, time_str)
-    vault_target_dir = os.path.join(target_dir, "vaults/jax_party", latest_vault)
+    target_dir = os.path.join(experiment_results_dir, latest_vault)
+    vault_target_dir = target_dir #os.path.join(target_dir, f"vaults/{env_name}", latest_vault)
 
     os.makedirs(vault_target_dir, exist_ok=True)
 
@@ -77,12 +76,13 @@ def aggregate_outputs(alg_name: str):
         shutil.move(metrics_file, os.path.join(target_dir, "metrics/metrics.json"))
 
     # Move checkpoint
-    if latest_checkpoint:
-        os.makedirs(os.path.join(target_dir, "checkpoints"), exist_ok=True)
-        shutil.move(
-            os.path.join(checkpoints_dir, latest_checkpoint),
-            os.path.join(target_dir, "checkpoints"),
-        )
+    # if latest_checkpoint:
+    #     os.makedirs(os.path.join(target_dir, "checkpoints"), exist_ok=True)
+    #     shutil.move(
+    #         os.path.join(checkpoints_dir, latest_checkpoint),
+    #         os.path.join(target_dir, "checkpoints"),
+    #     )
+
 
     # Copy latest config.yaml
     if latest_config_path:

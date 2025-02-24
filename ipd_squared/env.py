@@ -15,6 +15,14 @@ from functools import cached_property
 from mava.wrappers.jumanji import JumanjiMarlWrapper
 
 
+def register_IPDSquared():
+    from jumanji.registration import register, registered_environments
+
+    register("IPDSquared-v0", "ipd_squared.env:IPDSquared")
+
+    assert "IPDSquared-v0" in registered_environments()
+    print(f"{Fore.GREEN}IPDSquared-v0 registered successfully!{Style.RESET_ALL}")
+
 NUM_AGENTS = 4
 NUM_ACTIONS = 2
 
@@ -36,16 +44,6 @@ class State:
 class Observation(NamedTuple):
     agents_view: chex.Array
     action_mask: chex.Array
-
-
-def register_IPDSquared():
-    from jumanji.registration import register, registered_environments
-
-    register("IPDSquared-v0", "ipd_squared.env:IPDSquared")
-
-    assert "IPDSquared-v0" in registered_environments()
-    print(f"{Fore.GREEN}IPDSquared-v0 registered successfully!{Style.RESET_ALL}")
-
 
 def _get_action_mask() -> chex.Array:
     """
@@ -90,6 +88,9 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         epsilon_max: float,
         scaling_factor: int,
         time_limit: int = 1000,
+        cc: float = 1,
+        cd: float = 4,
+        dd: float = -1,
     ):
         self.env_name = "IPDSquared-v0"
         self.num_agents = NUM_AGENTS
@@ -100,8 +101,8 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         self.time_limit = time_limit
         self.PAYOFF_MATRIX = jnp.array(
             [
-                [1, -4],  # COOPERATE row
-                [4, -1],  # DEFECT row
+                [cc, -cd],  # COOPERATE row
+                [cd, dd],  # DEFECT row
             ]
         )
         self.generator = generator
@@ -137,18 +138,8 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
             update = team_payoff / self.scaling_factor
             return jax.lax.cond(
                 power[0] >= power[1],
-                lambda _: jnp.array(
-                    [
-                        power[0] + update,
-                        power[1] - update,
-                    ]
-                ),
-                lambda _: jnp.array(
-                    [
-                        power[0] - update,
-                        power[1] + update,
-                    ]
-                ),
+                lambda _: jnp.array([power[0] + update, power[1] - update]),
+                lambda _: jnp.array([power[0] - update, power[1] + update]),
                 operand=None,
             )
 
