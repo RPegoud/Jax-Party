@@ -587,7 +587,9 @@ def run_experiment(_config: DictConfig) -> float:
         learner_state = learner_output.learner_state
 
     # Final write to vault for any remaining data
+    time.sleep(2.5)
     vault.write(buffer_state)
+    time.sleep(2.5)
 
     # Record the performance for the final evaluation run.
     eval_performance = float(jnp.mean(eval_metrics[config.env.eval_metric]))

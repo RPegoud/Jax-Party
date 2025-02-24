@@ -90,7 +90,7 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
     def __init__(
         self,
         generator: PartyGenerator,
-        rank_based_reward: float = 1.0,
+        rank_based_reward: float = 10.0,
         time_limit: int = 4000,
     ):
         self.env_name = "JaxParty-v0"
@@ -158,7 +158,9 @@ class JaxParty(Environment[State, specs.DiscreteArray, Observation]):
             action_mask=next_action_mask,
             key=next_key,
         )
-        next_observation = self._make_observation(next_state) # TODO: did this fix smthg?
+        next_observation = self._make_observation(
+            next_state
+        )  # TODO: did this fix smthg?
 
         timestep = jax.lax.cond(
             done,

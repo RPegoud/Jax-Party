@@ -73,12 +73,12 @@ class PartyVault(Vault):
         buffer_state = self.buffer_add(buffer_state, flashbax_transition)
 
         # Save buffer into vault
-        if eval_step % self.save_interval == 0:
-            write_length = self.write(buffer_state)
-            print(
-                f"{Fore.WHITE}{Style.BRIGHT}(Wrote {write_length}) Vault index = {self.vault_index}{Style.RESET_ALL}"
-            )
-        return buffer_state
+        # if eval_step % self.save_interval == 0:
+        #     write_length = self.write(buffer_state)
+        #     print(
+        #         f"{Fore.WHITE}{Style.BRIGHT}(Wrote {write_length}) Vault index = {self.vault_index}{Style.RESET_ALL}"
+        #     )
+        # return buffer_state
 
     def push_to_neptune(self):  # TODO:
         raise NotImplementedError
@@ -88,10 +88,7 @@ def make_buffer_and_vault(
     env: JaxParty,
     config: dict,
     vault_id: str = None,  # None is converted to timestamp
-) -> tuple[
-    BufferState,
-    PartyVault,
-]:
+) -> tuple[BufferState, PartyVault]:
     # TODO: convert int32 to int8
     n_devices = len(jax.devices())
 
