@@ -30,6 +30,7 @@ from jax import tree
 from omegaconf import DictConfig, OmegaConf
 from optax._src.base import OptState
 from rich.pretty import pprint
+from jax_party import register_JaxParty
 
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
@@ -47,11 +48,13 @@ from mava.utils.make_env import make
 from mava.utils.network_utils import get_action_head
 from mava.wrappers.episode_metrics import get_final_step_metrics
 
-StoreExpLearnerFn = Callable[[MavaState], Tuple[ExperimentOutput[MavaState], PPOTransition]]
+StoreExpLearnerFn = Callable[
+    [MavaState], Tuple[ExperimentOutput[MavaState], PPOTransition]
+]
 
 # Experimental config
 SAVE_VAULT = True
-VAULT_NAME = "ff_ippo_rware"
+VAULT_NAME = "ff_ippo_jaxparty"
 VAULT_UID = None  # None => timestamp
 VAULT_SAVE_INTERVAL = 5
 
@@ -87,13 +90,17 @@ def get_learner_fn(
 
         """
 
-        def _env_step(learner_state: LearnerState, _: Any) -> Tuple[LearnerState, PPOTransition]:
+        def _env_step(
+            learner_state: LearnerState, _: Any
+        ) -> Tuple[LearnerState, PPOTransition]:
             """Step the environment."""
             params, opt_states, key, env_state, last_timestep = learner_state
 
             # SELECT ACTION
             key, policy_key = jax.random.split(key)
-            actor_policy = actor_apply_fn(params.actor_params, last_timestep.observation)
+            actor_policy = actor_apply_fn(
+                params.actor_params, last_timestep.observation
+            )
             value = critic_apply_fn(params.critic_params, last_timestep.observation)
             action = actor_policy.sample(seed=policy_key)
             log_prob = actor_policy.log_prob(action)
@@ -103,13 +110,21 @@ def get_learner_fn(
 
             # LOG EPISODE METRICS
             done = tree.map(
-                lambda x: jnp.repeat(x, config.system.num_agents).reshape(config.arch.num_envs, -1),
+                lambda x: jnp.repeat(x, config.system.num_agents).reshape(
+                    config.arch.num_envs, -1
+                ),
                 timestep.last(),
             )
             info = timestep.extras["episode_metrics"]
 
             transition = PPOTransition(
-                done, action, value, timestep.reward, log_prob, last_timestep.observation, info
+                done,
+                action,
+                value,
+                timestep.reward,
+                log_prob,
+                last_timestep.observation,
+                info,
             )
 
             learner_state = LearnerState(params, opt_states, key, env_state, timestep)
@@ -129,7 +144,9 @@ def get_learner_fn(
         ) -> Tuple[chex.Array, chex.Array]:
             """Calculate the GAE."""
 
-            def _get_advantages(gae_and_next_value: Tuple, transition: PPOTransition) -> Tuple:
+            def _get_advantages(
+                gae_and_next_value: Tuple, transition: PPOTransition
+            ) -> Tuple:
                 """Calculate the GAE for a single transition."""
                 gae, next_value = gae_and_next_value
                 done, value, reward = (
@@ -203,12 +220,14 @@ def get_learner_fn(
                     value = critic_apply_fn(critic_params, traj_batch.obs)
 
                     # CALCULATE VALUE LOSS
-                    value_pred_clipped = traj_batch.value + (value - traj_batch.value).clip(
-                        -config.system.clip_eps, config.system.clip_eps
-                    )
+                    value_pred_clipped = traj_batch.value + (
+                        value - traj_batch.value
+                    ).clip(-config.system.clip_eps, config.system.clip_eps)
                     value_losses = jnp.square(value - targets)
                     value_losses_clipped = jnp.square(value_pred_clipped - targets)
-                    value_loss = 0.5 * jnp.maximum(value_losses, value_losses_clipped).mean()
+                    value_loss = (
+                        0.5 * jnp.maximum(value_losses, value_losses_clipped).mean()
+                    )
 
                     critic_total_loss = config.system.vf_coef * value_loss
                     return critic_total_loss, (value_loss)
@@ -216,13 +235,19 @@ def get_learner_fn(
                 # CALCULATE ACTOR LOSS
                 actor_grad_fn = jax.value_and_grad(_actor_loss_fn, has_aux=True)
                 actor_loss_info, actor_grads = actor_grad_fn(
-                    params.actor_params, opt_states.actor_opt_state, traj_batch, advantages
+                    params.actor_params,
+                    opt_states.actor_opt_state,
+                    traj_batch,
+                    advantages,
                 )
 
                 # CALCULATE CRITIC LOSS
                 critic_grad_fn = jax.value_and_grad(_critic_loss_fn, has_aux=True)
                 critic_loss_info, critic_grads = critic_grad_fn(
-                    params.critic_params, opt_states.critic_opt_state, traj_batch, targets
+                    params.critic_params,
+                    opt_states.critic_opt_state,
+                    traj_batch,
+                    targets,
                 )
 
                 # Compute the parallel mean (pmean) over the batch.
@@ -247,13 +272,17 @@ def get_learner_fn(
                 actor_updates, actor_new_opt_state = actor_update_fn(
                     actor_grads, opt_states.actor_opt_state
                 )
-                actor_new_params = optax.apply_updates(params.actor_params, actor_updates)
+                actor_new_params = optax.apply_updates(
+                    params.actor_params, actor_updates
+                )
 
                 # UPDATE CRITIC PARAMS AND OPTIMISER STATE
                 critic_updates, critic_new_opt_state = critic_update_fn(
                     critic_grads, opt_states.critic_opt_state
                 )
-                critic_new_params = optax.apply_updates(params.critic_params, critic_updates)
+                critic_new_params = optax.apply_updates(
+                    params.critic_params, critic_updates
+                )
 
                 # PACK NEW PARAMS AND OPTIMISER STATE
                 new_params = Params(actor_new_params, critic_new_params)
@@ -283,7 +312,9 @@ def get_learner_fn(
             batch = tree.map(lambda x: merge_leading_dims(x, 2), batch)
             shuffled_batch = tree.map(lambda x: jnp.take(x, permutation, axis=0), batch)
             minibatches = tree.map(
-                lambda x: jnp.reshape(x, (config.system.num_minibatches, -1, *x.shape[1:])),
+                lambda x: jnp.reshape(
+                    x, (config.system.num_minibatches, -1, *x.shape[1:])
+                ),
                 shuffled_batch,
             )
 
@@ -326,7 +357,9 @@ def get_learner_fn(
                 - timesteps (TimeStep): The initial timestep in the initial trajectory.
 
         """
-        batched_update_step = jax.vmap(_update_step, in_axes=(0, None), axis_name="batch")
+        batched_update_step = jax.vmap(
+            _update_step, in_axes=(0, None), axis_name="batch"
+        )
 
         learner_state, (episode_info, loss_info, traj_batch) = jax.lax.scan(
             batched_update_step, learner_state, None, config.system.num_updates_per_eval
@@ -399,7 +432,10 @@ def learner_setup(
             input_params=Params(actor_params, critic_params)
         )
         # Update the params
-        actor_params, critic_params = restored_params.actor_params, restored_params.critic_params
+        actor_params, critic_params = (
+            restored_params.actor_params,
+            restored_params.critic_params,
+        )
 
     # Pack apply and update functions.
     apply_fns = (actor_network.apply, critic_network.apply)
@@ -428,7 +464,9 @@ def learner_setup(
     )
 
     # Split keys for each core.
-    key, *step_keys = jax.random.split(key, n_devices * config.system.update_batch_size + 1)
+    key, *step_keys = jax.random.split(
+        key, n_devices * config.system.update_batch_size + 1
+    )
 
     # Add dimension to pmap over.
     reshape_step_keys = lambda x: x.reshape(
@@ -444,7 +482,9 @@ def learner_setup(
     params = Params(actor_params, critic_params)
     opt_states = OptStates(actor_opt_state, critic_opt_state)
 
-    init_learner_state = LearnerState(params, opt_states, step_keys, env_states, timesteps)
+    init_learner_state = LearnerState(
+        params, opt_states, step_keys, env_states, timesteps
+    )
     return learn, actor_network, init_learner_state
 
 
@@ -469,9 +509,13 @@ def run_experiment(_config: DictConfig) -> None:
     # Setup evaluator.
     eval_keys = jax.random.split(key_e, n_devices)
     eval_act_fn = make_ff_eval_act_fn(actor_network, config)
-    evaluator = get_eval_fn(eval_env, eval_act_fn, config, config.arch.num_eval_episodes)
+    evaluator = get_eval_fn(
+        eval_env, eval_act_fn, config, config.arch.num_eval_episodes
+    )
 
-    config.system.num_updates_per_eval = config.system.num_updates // config.arch.num_evaluation
+    config.system.num_updates_per_eval = (
+        config.system.num_updates // config.arch.num_evaluation
+    )
     steps_per_rollout = (
         n_devices
         * config.system.num_updates_per_eval
@@ -598,7 +642,9 @@ def run_experiment(_config: DictConfig) -> None:
         # Log the results of the training.
         elapsed_time = time.time() - start_time
         t = int(steps_per_rollout * (eval_step + 1))
-        episode_metrics, ep_completed = get_final_step_metrics(learner_output.episode_metrics)
+        episode_metrics, ep_completed = get_final_step_metrics(
+            learner_output.episode_metrics
+        )
         episode_metrics["steps_per_second"] = steps_per_rollout / elapsed_time
 
         # Separately log timesteps, actoring metrics and training metrics.
@@ -631,7 +677,9 @@ def run_experiment(_config: DictConfig) -> None:
             # Save checkpoint of learner state
             checkpointer.save(
                 timestep=steps_per_rollout * (eval_step + 1),
-                unreplicated_learner_state=unreplicate_n_dims(learner_output.learner_state),
+                unreplicated_learner_state=unreplicate_n_dims(
+                    learner_output.learner_state
+                ),
                 episode_return=episode_return,
             )
 
@@ -669,7 +717,9 @@ def run_experiment(_config: DictConfig) -> None:
     logger.stop()
 
 
-@hydra.main(config_path="../configs/default", config_name="ff_ippo.yaml", version_base="1.2")
+@hydra.main(
+    config_path="./mava/configs/default", config_name="ff_ippo.yaml", version_base="1.2"
+)
 def hydra_entry_point(cfg: DictConfig) -> None:
     """Experiment entry point."""
     # Allow dynamic attributes.
@@ -682,4 +732,5 @@ def hydra_entry_point(cfg: DictConfig) -> None:
 
 
 if __name__ == "__main__":
+    register_JaxParty()
     hydra_entry_point()

@@ -1,3 +1,6 @@
+experiment_results
+.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -165,7 +168,7 @@ bin/act
 component_dependency_map.png
 
 # Mava env
-mava_env/
+# mava_env/
 
 # Sacred logs
 results/

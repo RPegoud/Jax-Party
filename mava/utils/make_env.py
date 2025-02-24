@@ -37,8 +37,8 @@ from jumanji.environments.routing.robot_warehouse.generator import (
     RandomGenerator as RwareRandomGenerator,
 )
 from omegaconf import DictConfig
-
 from ipd_squared import *
+from jax_party import *
 from mava.types import MarlEnv
 from mava.wrappers import (
     AgentIDWrapper,
@@ -61,6 +61,8 @@ from mava.wrappers import (
     VectorConnectorWrapper,
     async_multiagent_worker,
 )
+from jax_party import PartyMARLWrapper
+from ipd_squared import IPDSquaredGenerator, IPDSquaredMARLWrapper
 
 # Registry mapping environment names to their generator and wrapper classes.
 _jumanji_registry = {
@@ -72,6 +74,7 @@ _jumanji_registry = {
         "wrapper": VectorConnectorWrapper,
     },
     "Cleaner": {"generator": CleanerRandomGenerator, "wrapper": CleanerWrapper},
+    "jaxparty": {"generator": PartyGenerator, "wrapper": PartyMARLWrapper},
     "ipdsquared": {"generator": IPDSquaredGenerator, "wrapper": IPDSquaredMARLWrapper},
 }
 
@@ -79,6 +82,7 @@ _jumanji_registry = {
 _matrax_registry = {"Matrax": MatraxWrapper}
 _jaxmarl_registry = {"Smax": SmaxWrapper, "MaBrax": MabraxWrapper, "MPE": MPEWrapper}
 # _gigastep_registry = {"Gigastep": GigastepWrapper}
+
 
 _gym_registry = {
     "RobotWarehouse": UoeWrapper,
@@ -209,7 +213,6 @@ def make_matrax_env(
     train_env, eval_env = add_extra_wrappers(train_env, eval_env, config)
     return train_env, eval_env
 
-
 # def make_gigastep_env(
 #     config: DictConfig, add_global_state: bool = False
 # ) -> Tuple[MarlEnv, MarlEnv]:
@@ -237,7 +240,6 @@ def make_matrax_env(
 
 #     train_env, eval_env = add_extra_wrappers(train_env, eval_env, config)
 #     return train_env, eval_env
-
 
 def make_gym_env(
     config: DictConfig,
@@ -305,5 +307,6 @@ def make(config: DictConfig, add_global_state: bool = False) -> Tuple[MarlEnv, M
         return make_matrax_env(config, add_global_state)
     # elif env_name in _gigastep_registry:
     #     return make_gigastep_env(config, add_global_state)
+
     else:
         raise ValueError(f"{env_name} is not a supported environment.")

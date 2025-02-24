@@ -23,7 +23,6 @@ def register_IPDSquared():
     assert "IPDSquared-v0" in registered_environments()
     print(f"{Fore.GREEN}IPDSquared-v0 registered successfully!{Style.RESET_ALL}")
 
-
 NUM_AGENTS = 4
 NUM_ACTIONS = 2
 
@@ -45,7 +44,6 @@ class State:
 class Observation(NamedTuple):
     agents_view: chex.Array
     action_mask: chex.Array
-
 
 def _get_action_mask() -> chex.Array:
     """

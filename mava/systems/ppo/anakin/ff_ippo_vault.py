@@ -35,6 +35,7 @@ from ipd_squared import (
     make_buffer_and_vault,
 )
 
+
 from mava.evaluator import get_eval_fn, make_ff_eval_act_fn
 from mava.networks import FeedForwardActor as Actor
 from mava.networks import FeedForwardValueNet as Critic
@@ -621,7 +622,6 @@ def hydra_entry_point(cfg: DictConfig) -> float:
     OmegaConf.set_struct(cfg, False)
     register_IPDSquared()
     eval_performance = run_experiment(cfg)
-    # 
     print(f"{Fore.CYAN}{Style.BRIGHT}IPPO experiment completed{Style.RESET_ALL}")
     aggregate_outputs(alg_name="ff_ippo", env_name=cfg.env.vault_name)
 
@@ -630,3 +630,4 @@ def hydra_entry_point(cfg: DictConfig) -> float:
 
 if __name__ == "__main__":
     hydra_entry_point()
+
