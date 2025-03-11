@@ -5,6 +5,8 @@ defaults:
 env_name: ipdsquared  # Used for logging purposes.
 vault_name: ipd_squared
 
+seed: 1 # random seed
+
 # Defines the metric that will be used to evaluate the performance of the agent.
 # This metric is returned at the end of an experiment and can be used for hyperparameter tuning.
 eval_metric: episode_return
@@ -20,9 +22,9 @@ kwargs:
   time_limit: 4000
   epsilon_min: -0.5
   epsilon_max: 0.5
-  scaling_factor: 100
-  cc: 2
-  cd: 4
-  dd: -2
+  scaling_factor: 10
+  cc: 2  # reward for cooperate/cooperate
+  cd: 4  # reward for cooperate/defect and defect/cooperate
+  dd: -2 # reward for defect/defect
   outer_action_selection: "sampling" # if max, the team action is selected based on the action of the agent with most power, if "sampling", we select the action based on the softmax distribution over powers
 

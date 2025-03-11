@@ -20,7 +20,20 @@ def plot_vault(
     merge_n_leading_dims = lambda array, n: array.reshape(-1, *array.shape[n:])
     action_bincount = lambda array: jnp.bincount(array, length=2)
 
-    def _plot_cumulative_rewards(): ...
+    def _plot_cumulative_rewards(rewards: chex.Array) -> Figure:
+        return px.line(
+            (rewards.cumsum(axis=0)),
+            title="Cumulative Rewards",
+            labels={"index": "Timesteps", "value": "Cumulative Reward"},
+        )
+
+    def _plot_power(obs: chex.Array) -> Figure:
+        power = obs[:, 0, 4:8]
+        return px.line(
+            power,
+            title="Power over time",
+            labels={"index": "Timesteps", "value": "Power"},
+        )
 
     def _plot_action_proportion(actions: chex.Array) -> Figure:
         action_counts = jax.vmap(action_bincount, in_axes=(1))(actions)
@@ -28,6 +41,16 @@ def plot_vault(
             pd.DataFrame(action_counts, columns=["cooperate", "defect"]),
             title="Proportion of cooperation and deffection per agent",
             labels={"index": "agent", "value": "count"},
+        )
+
+    def _plot_action_proportion_over_time(actions: chex.Array) -> Figure:
+        return px.line(
+            (
+                actions.cumsum(axis=0)
+                / (jnp.arange(1, actions.shape[0] + 1)).reshape(-1, 1)
+            ),
+            title="Proportion of actions over time",
+            labels={"index": "Timesteps", "value": "Action Proportion"},
         )
 
     def _plot_final_sum_of_rewards(rewards: chex.Array) -> Figure:
@@ -53,10 +76,20 @@ def plot_vault(
     obs = buffer_state.experience["observation"]
 
     # flatten the batch dimensions of experience samples
-    actions, rewards, obs = merge_n_leading_dims((actions, rewards, obs), (2, 2, 2))
+    actions, rewards, obs = jax.tree.map(
+        merge_n_leading_dims, (actions, rewards, obs), (2, 2, 2)
+    )
 
     action_counts_fig: Figure = _plot_action_proportion(actions)
+    sum_of_rewards: Figure = _plot_final_sum_of_rewards(actions)
+    actions_over_time: Figure = _plot_action_proportion_over_time(actions)
+    cumulative_rewards: Figure = _plot_cumulative_rewards(actions)
+    power_over_time: Figure = _plot_power(obs)
 
     return {
         "action_counts": action_counts_fig,
+        "sum_of_rewards": sum_of_rewards,
+        "actions_over_time": actions_over_time,
+        "cumulative_rewards": cumulative_rewards,
+        "power_over_time": power_over_time,
     }

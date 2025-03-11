@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import copy
+import datetime
 import time
 from typing import Any, Callable, Dict, Tuple
 
@@ -34,6 +35,7 @@ from src import (
     register_IPDSquared,
     register_JaxParty,
     make_buffer_and_vault,
+    push_to_neptune,
 )
 
 
@@ -478,7 +480,7 @@ def run_experiment(_config: DictConfig) -> float:
 
     # PRNG keys.
     key, key_e, actor_net_key, critic_net_key = jax.random.split(
-        jax.random.PRNGKey(config.system.seed), num=4
+        jax.random.PRNGKey(config.env.seed), num=4
     )
 
     # Setup learner.
@@ -626,6 +628,15 @@ def hydra_entry_point(cfg: DictConfig) -> float:
     eval_performance = run_experiment(cfg)
     print(f"{Fore.CYAN}{Style.BRIGHT}IPPO experiment completed{Style.RESET_ALL}")
     aggregate_outputs(alg_name="ff_ippo", env_name=cfg.env.vault_name)
+
+    uid = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    push_to_neptune(
+        run_name=f"ff_ippo_{uid}",
+        alg_name="ff_ippo",
+        env_name=cfg.env.vault_name,
+        description=".",
+        config=cfg,
+    )
 
     return eval_performance
 

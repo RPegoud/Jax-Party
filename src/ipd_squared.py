@@ -56,14 +56,15 @@ def _get_action_mask() -> chex.Array:
 
 class IPDSquaredGenerator:
     """
-    Generator for the JaxParty Environment (essentially the reset function).
+    Generator for the IPDSquare Environment (essentially the reset function).
     """
 
     def __init__(self, **kwargs):
         pass
 
     def __call__(self, key: chex.PRNGKey) -> State:
-        init_power = jnp.full(shape=(2, 2), fill_value=0.5)
+        # init_power = jnp.full(shape=(2, 2), fill_value=0.5)
+        init_power = jnp.array([[0.2, 0.8], [0.2, 0.8]])  # TODO: change back to uniform
         action_mask = _get_action_mask()
         history = jnp.full((NUM_AGENTS,), -1)
 
@@ -116,6 +117,7 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
         """
         Concatenates the power and history into an observation array.
         """
+        # TODO: compare without power in the observation
         agents_view = jnp.concatenate((state.power.flatten(), state.history.flatten()))
         return Observation(
             agents_view=agents_view,
@@ -164,19 +166,18 @@ class IPDSquared(Environment[State, specs.DiscreteArray, Observation]):
                 inner_actions, jnp.argmax(power, axis=-1, keepdims=True), axis=-1
             )
         elif self.outer_action_selection == "sampling":
-            decisions = jax.random.uniform(key, (2,)) > power[:, 0]
-            decisions = decisions.astype(jnp.int8).reshape(2, 1)
-            outer_actions = jnp.take_along_axis(inner_actions, decisions, axis=-1)
+            decisions = jax.random.categorical(key, jnp.log(power), axis=1).reshape(
+                -1, 1
+            )
+            outer_actions = jnp.take_along_axis(inner_actions, decisions, axis=1)
 
         return outer_actions
 
     def step(
         self, state: State, inner_actions: chex.Array
     ) -> Tuple[State, TimeStep[Observation]]:
-        # TODO: we might want to sample the actions based on power instead of picking greedily
-        # TODO: do we want to allow different actions at the local and global level at some point?
-
         inner_actions = inner_actions.reshape(2, 2)
+        # TODO: reuse epsilon
         next_key, epsilon_key, action_key = jax.random.split(state.key, num=3)
         # epsilons = jax.random.uniform(
         #     epsilon_key, (2, 1), minval=self.epsilon_min, maxval=self.epsilon_max
